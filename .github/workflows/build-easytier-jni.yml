@@ -1,0 +1,73 @@
+name: Build EasyTier JNI (arm64-v8a)
+
+# EasyClash: 云端可重复构建 EasyTier v2.6.4 的两个原生库。
+# 产物仅 arm64-v8a（与官方 build.sh 一致）。本地无法构建 Rust 时使用。
+# 手动触发或路径变更触发；产物经 Artifacts 下载后复制到
+# core/src/main/jniLibs/arm64-v8a/ 并提交。
+
+on:
+  workflow_dispatch:
+    inputs:
+      easytier_ref:
+        description: 'EasyTier tag / ref'
+        required: false
+        default: 'v2.6.4'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout EasyTier
+        uses: actions/checkout@v4
+        with:
+          repository: EasyTier/EasyTier
+          ref: ${{ github.event.inputs.easytier_ref || 'v2.6.4' }}
+
+      - name: Install Rust toolchain (pinned by rust-toolchain.toml)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.95'
+
+      - name: Install cargo-ndk
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-ndk
+
+      - name: Setup Java (for Android SDK)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Setup Android SDK (NDK)
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'ndk;29.0.14206865'
+
+      - name: Install protoc
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y protobuf-compiler
+          protoc --version
+
+      - name: Build easytier-ffi + easytier-android-jni (arm64-v8a)
+        env:
+          ANDROID_NDK_ROOT: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
+          LIBCLANG_PATH: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/bin
+        run: |
+          cargo ndk -t arm64-v8a build --release -p easytier-ffi -p easytier-android-jni
+          mkdir -p out/arm64-v8a
+          cp target/aarch64-linux-android/release/libeasytier_ffi.so out/arm64-v8a/
+          cp target/aarch64-linux-android/release/libeasytier_android_jni.so out/arm64-v8a/
+          sha256sum out/arm64-v8a/*.so
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: easytier-jni-arm64-v8a
+          path: out/arm64-v8a/*.so
+          if-no-files-found: error
