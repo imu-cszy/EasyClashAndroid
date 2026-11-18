@@ -372,6 +372,17 @@ Java_com_github_kr328_clash_core_bridge_Bridge_nativeClearOverride(JNIEnv *env, 
     clearOverride(slot);
 }
 
+// EasyClash: session 级 EasyTier 代理链注入（合并式 patch，见 config/easytier_patch.go）
+JNIEXPORT void JNICALL
+Java_com_github_kr328_clash_core_bridge_Bridge_nativeSetEasyTierProxies(JNIEnv *env, jobject thiz,
+                                                                        jstring content) {
+    TRACE_METHOD();
+
+    scoped_string _content = get_string(content);
+
+    setEasyTierProxies(_content);
+}
+
 JNIEXPORT jstring JNICALL
 Java_com_github_kr328_clash_core_bridge_Bridge_nativeQueryConfiguration(JNIEnv *env, jobject thiz) {
     TRACE_METHOD();
