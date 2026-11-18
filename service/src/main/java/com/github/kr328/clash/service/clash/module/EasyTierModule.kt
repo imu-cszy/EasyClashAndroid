@@ -4,7 +4,9 @@ import android.app.Service
 import android.content.Intent
 import com.github.kr328.clash.common.constants.Intents
 import com.github.kr328.clash.common.log.Log
+import com.github.kr328.clash.core.Clash
 import com.github.kr328.clash.core.easytier.EasyTierNativeBridge
+import com.github.kr328.clash.core.model.ProxySort
 import com.github.kr328.clash.service.easytier.Diagnostics
 import com.github.kr328.clash.service.easytier.EasyTierConfigStore
 import com.github.kr328.clash.service.easytier.EasyTierRuntimeManager
@@ -47,6 +49,9 @@ class EasyTierModule(service: Service) : Module<EasyTierModule.Event>(service) {
 
     private val moduleScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val diagnostics = Diagnostics()
+
+    /** Mihomo 代理链是否已校验过（一次性） */
+    private var chainVerified = false
     val manager = EasyTierRuntimeManager(
         scope = moduleScope,
         bridge = EasyTierNativeBridge,
@@ -116,9 +121,47 @@ class EasyTierModule(service: Service) : Module<EasyTierModule.Event>(service) {
         }
     }
 
+    /**
+     * 校验 Mihomo 代理链是否真的注入成功：AWS-EXIT 组存在且成员为两个 AWS 出站。
+     * 失败最常见原因：profile 加载失败、或注入时机晚于配置解析。
+     */
+    private fun verifyMihomoChain() {
+        val groups = runCatching { Clash.queryGroupNames(false) }.getOrNull()
+        if (groups == null) {
+            diagnostics.log(Diagnostics.Category.MIHOMO, "chain", "query group names failed")
+            return
+        }
+        val hasExit = MihomoConfigComposer.GROUP_AWS_EXIT in groups
+        diagnostics.log(
+            Diagnostics.Category.MIHOMO, "chain",
+            "AWS-EXIT present=$hasExit groups=${groups.take(12)}"
+        )
+        if (hasExit) {
+            val members = runCatching {
+                Clash.queryGroup(MihomoConfigComposer.GROUP_AWS_EXIT, ProxySort.Default)
+                    .proxies.map { it.name }
+            }.getOrNull()
+            diagnostics.log(Diagnostics.Category.MIHOMO, "chain", "AWS-EXIT members=$members")
+        } else {
+            diagnostics.log(
+                Diagnostics.Category.MIHOMO, "chain",
+                "injection not applied — check profile load / patchEasyTier"
+            )
+        }
+    }
+
     private fun observeStatus() {
         moduleScope.launch {
             manager.status.collect { status ->
+                // 首次进入可连接状态时校验 Mihomo 侧注入是否真的生效
+                // （配置加载失败/被 profile 覆盖时，AWS-EXIT 不会出现在策略组里）
+                if (!chainVerified &&
+                    (status.state == EasyTierRuntimeManager.State.CHECKING_LIGHTSAIL ||
+                        status.state == EasyTierRuntimeManager.State.CONNECTED)
+                ) {
+                    chainVerified = true
+                    verifyMihomoChain()
+                }
                 val payload = buildJsonObject {
                     put("state", status.state.name)
                     put("since", status.since)

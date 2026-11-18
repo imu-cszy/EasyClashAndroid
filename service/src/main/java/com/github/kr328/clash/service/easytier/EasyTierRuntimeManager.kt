@@ -66,6 +66,12 @@ class EasyTierRuntimeManager(
     /** 串行化原生调用：保证 stop() 不会与 start() 的 run/parse 竞争 */
     private val nativeLock = Mutex()
 
+    /** 已写入诊断的 EasyTier 事件（去重，避免刷屏） */
+    private val loggedEvents = LinkedHashSet<String>()
+
+    /** 虚拟 IP 冲突只告警一次 */
+    private var conflictLogged = false
+
     /** 用户主动停止标志：true 时任何错误/网络事件都不触发自动重连 */
     @Volatile
     private var userStopped = true
@@ -200,30 +206,49 @@ class EasyTierRuntimeManager(
         return false
     }
 
+    /**
+     * 监控循环。
+     *
+     * 设计要点（2026-11-18 真机教训）：
+     * - **只有在实例确实不存在/未运行时才重启**。peer 列表短暂为空是正常的（刚启动、
+     *   OSPF 路由尚未收敛），此前把"无 peer"当失败会导致每秒重启实例、隧道反复中断。
+     * - EasyTier 自身会维护重连；我们重启只会破坏它。
+     * - 出口可用性以「本地 SOCKS5 + 隧道内二级 SOCKS5 探测」为准（应用层验收），
+     *   peer 列表仅用于展示与状态细分。
+     * - EasyTier 的 events（含 IP 冲突、连接错误等）增量写入诊断日志。
+     */
     private suspend fun monitorLoop(config: EasyTierConfig) {
         var backoffMs = INITIAL_BACKOFF_MS
+        var lastExitCheckAt = 0L
         while (true) {
-            val state = _status.value.state
             val info = try {
                 bridge.collectNetworkInfos().map[config.instanceName]
             } catch (e: EasyTierException) {
                 diagnostics.log(Diagnostics.Category.NATIVE, "collect", "failed: ${e.message}")
                 null
             }
-            val hasPeer = info?.peers?.isNotEmpty() == true || info?.peerRoutePairs?.isNotEmpty() == true
+            logNewEvents(info)
+            checkIpConflict(info)
+
             val instanceRunning = info?.running == true
+            val hasPeer = info?.peers?.isNotEmpty() == true || info?.peerRoutePairs?.isNotEmpty() == true
             val socks = healthChecker.checkLocal(port = config.socks5Port)
             val socksOk = socks is LocalSocksHealthChecker.CheckResult.Ok
 
-            if (!instanceRunning || !hasPeer) {
-                // 实例未运行或未入网
-                if (!userStopped && state != State.RECONNECTING) {
-                    diagnostics.log(Diagnostics.Category.RUNTIME, "monitor", "lost peers -> reconnecting")
-                    transition(State.RECONNECTING) { it.copy(reconnects = it.reconnects + 1) }
+            if (!instanceRunning) {
+                if (userStopped) {
+                    delay(POLL_SLOW_MS)
+                    continue
                 }
-                if (state == State.RECONNECTING) {
-                    delay(backoffMs)
-                    backoffMs = (backoffMs * 2).coerceAtMost(MAX_BACKOFF_MS)
+                // 唯一需要重启的情形：实例不存在（进程内实例被回收/启动失败）
+                diagnostics.log(
+                    Diagnostics.Category.RUNTIME, "monitor",
+                    "instance missing -> restart in ${backoffMs}ms (reconnects=${_status.value.reconnects + 1})"
+                )
+                transition(State.RECONNECTING) { it.copy(reconnects = it.reconnects + 1) }
+                delay(backoffMs)
+                backoffMs = (backoffMs * 2).coerceAtMost(MAX_BACKOFF_MS)
+                nativeLock.withLock {
                     if (!userStopped) {
                         try {
                             bridge.runNetworkInstance(config.toToml())
@@ -232,28 +257,77 @@ class EasyTierRuntimeManager(
                             diagnostics.log(Diagnostics.Category.NATIVE, "reconnect", "failed: ${e.message}")
                         }
                     }
-                    continue
                 }
-            } else if (hasPeer && socksOk) {
-                backoffMs = INITIAL_BACKOFF_MS
-                if (state != State.CONNECTED && state != State.DEGRADED && state != State.CHECKING_LIGHTSAIL) {
-                    transition(State.CHECKING_LIGHTSAIL) { it.copy(virtualIpv4 = info?.virtualIpv4, peers = info.toPeerSummaries(), socks5Ok = true) }
-                    checkLightsail(config)
-                } else {
-                    update { it.copy(virtualIpv4 = info?.virtualIpv4, peers = info.toPeerSummaries(), socks5Ok = true) }
+                continue
+            }
+            backoffMs = INITIAL_BACKOFF_MS
+
+            if (!socksOk) {
+                transition(State.DEGRADED) {
+                    it.copy(
+                        socks5Ok = false,
+                        virtualIpv4 = info?.virtualIpv4,
+                        peers = info.toPeerSummaries(),
+                        lastError = "local SOCKS5 not listening on ${config.socks5Port}",
+                    )
                 }
-            } else if (hasPeer && !socksOk) {
-                if (state == State.CONNECTED || state == State.DEGRADED) {
-                    diagnostics.log(Diagnostics.Category.SOCKS5, "monitor", "local socks lost -> degraded")
-                }
-                transition(State.DEGRADED) { it.copy(socks5Ok = false, virtualIpv4 = info?.virtualIpv4, peers = info.toPeerSummaries()) }
+                delay(POLL_FAST_MS)
+                continue
             }
 
-            delay(if (state == State.CONNECTED || state == State.DEGRADED) POLL_SLOW_MS else POLL_FAST_MS)
+            // 本地 SOCKS 正常：按间隔做出口端到端检测（非 CONNECTED 时更快重试）
+            val now = System.currentTimeMillis()
+            val interval = if (_status.value.state == State.CONNECTED) EXIT_CHECK_INTERVAL_MS else EXIT_RETRY_MS
+            if (now - lastExitCheckAt >= interval) {
+                lastExitCheckAt = now
+                transition(State.CHECKING_LIGHTSAIL) {
+                    it.copy(socks5Ok = true, virtualIpv4 = info?.virtualIpv4, peers = info.toPeerSummaries())
+                }
+                checkLightsail(config, hasPeer)
+            } else {
+                update {
+                    it.copy(socks5Ok = true, virtualIpv4 = info?.virtualIpv4, peers = info.toPeerSummaries())
+                }
+            }
+
+            delay(POLL_SLOW_MS)
         }
     }
 
-    private suspend fun checkLightsail(config: EasyTierConfig) {
+    /** EasyTier 事件增量落日志（用于发现 IP 冲突、握手失败等） */
+    private fun logNewEvents(info: NetworkInstanceRunningInfo?) {
+        val events = info?.events ?: return
+        for (e in events.takeLast(4)) {
+            if (loggedEvents.add(e)) {
+                diagnostics.log(Diagnostics.Category.RUNTIME, "event", e.take(400))
+            }
+        }
+        if (loggedEvents.size > 300) {
+            val iterator = loggedEvents.iterator()
+            repeat(loggedEvents.size - 200) {
+                if (iterator.hasNext()) {
+                    iterator.next()
+                    iterator.remove()
+                }
+            }
+        }
+    }
+
+    /** 检测虚拟 IP 冲突：有其它节点声明与本机相同的 IP（会导致 relay / 路由错乱） */
+    private fun checkIpConflict(info: NetworkInstanceRunningInfo?) {
+        val myIp = info?.myNodeInfo?.virtualIpv4?.substringBefore('/') ?: return
+        val peerIps = info.peerRoutePairs.mapNotNull { it.route?.ipv4?.substringBefore('/') } +
+            info.routes.mapNotNull { it.ipv4?.substringBefore('/') }
+        if (myIp in peerIps && !conflictLogged) {
+            conflictLogged = true
+            diagnostics.log(
+                Diagnostics.Category.RUNTIME, "conflict",
+                "another node advertises the same virtual IP $myIp — stop the other EasyTier client or change ipv4"
+            )
+        }
+    }
+
+    private suspend fun checkLightsail(config: EasyTierConfig, hasPeer: Boolean) {
         // 端到端：本地 SOCKS5 → 隧道 → Lightsail SOCKS5 协商/认证 → 探测目标。
         // 这样凭据错误会落在 REMOTE_AUTH 阶段，而不是笼统的"不可达"。
         val normal = healthChecker.checkRemoteThrough(
@@ -276,7 +350,8 @@ class EasyTierRuntimeManager(
                 it.copy(lightsailNormal = normal, lightsailWarp = warp, lastError = null)
             }
         } else {
-            transition(State.DEGRADED) {
+            // 出口都不可用：区分「还没连上 peer」与「连上了但出口故障」
+            transition(if (!hasPeer) State.WAITING_FOR_PEER else State.DEGRADED) {
                 it.copy(
                     lightsailNormal = normal, lightsailWarp = warp,
                     lastError = "lightsail unreachable: ${describe(normal)}; ${describe(warp)}",
@@ -343,5 +418,11 @@ class EasyTierRuntimeManager(
         private const val PEER_WAIT_TIMEOUT_MS = 30_000L
         private const val INITIAL_BACKOFF_MS = 1_000L
         private const val MAX_BACKOFF_MS = 32_000L
+
+        /** CONNECTED 后出口复检间隔 */
+        private const val EXIT_CHECK_INTERVAL_MS = 30_000L
+
+        /** 未 CONNECTED 时出口重试间隔 */
+        private const val EXIT_RETRY_MS = 10_000L
     }
 }
