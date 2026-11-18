@@ -282,4 +282,30 @@
     <string name="shortcut_start_long">启动 Clash 服务</string>
     <string name="shortcut_stop_short">停止 Clash</string>
     <string name="shortcut_stop_long">停止 Clash 服务</string>
+
+    <!-- EasyClash: EasyTier 集成 -->
+    <string name="et_entry">EasyTier 网络</string>
+    <string name="et_settings_title">EasyTier 网络</string>
+    <string name="et_category_easytier">EasyTier</string>
+    <string name="et_enable">启用 EasyTier</string>
+    <string name="et_enable_summary">以 No-TUN 模式运行 EasyTier 并注入 Mihomo 代理链（ET-LOCAL / AWS-EXIT）。重启 VPN 服务后生效。</string>
+    <string name="et_network_name">网络名称</string>
+    <string name="et_network_secret">网络密钥</string>
+    <string name="et_hostname">主机名</string>
+    <string name="et_ipv4">虚拟 IPv4（CIDR）</string>
+    <string name="et_peers">Peer URI 列表</string>
+    <string name="et_socks5_port">本地 SOCKS5 端口</string>
+    <string name="et_category_lightsail">AWS 出口（经 EasyTier 私网）</string>
+    <string name="et_lightsail_host">Lightsail 主机</string>
+    <string name="et_normal_port">普通 SOCKS5 端口</string>
+    <string name="et_warp_port">WARP SOCKS5 端口</string>
+    <string name="et_normal_user">普通出口用户名</string>
+    <string name="et_normal_password">普通出口密码</string>
+    <string name="et_warp_user">WARP 出口用户名</string>
+    <string name="et_warp_password">WARP 出口密码</string>
+    <string name="et_category_diagnostics">诊断</string>
+    <string name="et_view_diagnostics">查看诊断日志</string>
+    <string name="et_restart_required">重启 VPN 服务后生效</string>
+    <string name="et_diag_requesting">正在获取诊断…</string>
+    <string name="et_diag_copied">已复制</string>
 </resources>

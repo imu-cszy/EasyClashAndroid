@@ -373,4 +373,30 @@
     <string name="shortcut_start_long">Start Clash service</string>
     <string name="shortcut_stop_short">Stop Clash</string>
     <string name="shortcut_stop_long">Stop Clash service</string>
+
+    <!-- EasyClash: EasyTier integration -->
+    <string name="et_entry">EasyTier Network</string>
+    <string name="et_settings_title">EasyTier Network</string>
+    <string name="et_category_easytier">EasyTier</string>
+    <string name="et_enable">Enable EasyTier</string>
+    <string name="et_enable_summary">Run EasyTier No-TUN with local SOCKS5 and inject Mihomo chain (ET-LOCAL / AWS-EXIT). Takes effect when the VPN service restarts.</string>
+    <string name="et_network_name">Network name</string>
+    <string name="et_network_secret">Network secret</string>
+    <string name="et_hostname">Hostname</string>
+    <string name="et_ipv4">Virtual IPv4 (CIDR)</string>
+    <string name="et_peers">Peer URIs</string>
+    <string name="et_socks5_port">Local SOCKS5 port</string>
+    <string name="et_category_lightsail">AWS exits (via EasyTier overlay)</string>
+    <string name="et_lightsail_host">Lightsail host</string>
+    <string name="et_normal_port">Normal SOCKS5 port</string>
+    <string name="et_warp_port">WARP SOCKS5 port</string>
+    <string name="et_normal_user">Normal username</string>
+    <string name="et_normal_password">Normal password</string>
+    <string name="et_warp_user">WARP username</string>
+    <string name="et_warp_password">WARP password</string>
+    <string name="et_category_diagnostics">Diagnostics</string>
+    <string name="et_view_diagnostics">View diagnostics</string>
+    <string name="et_restart_required">Restart the VPN service to apply</string>
+    <string name="et_diag_requesting">Requesting diagnostics…</string>
+    <string name="et_diag_copied">Copied</string>
 </resources>

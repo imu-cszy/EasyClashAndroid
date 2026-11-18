@@ -29,6 +29,10 @@ class TunService : VpnService(), CoroutineScope by CoroutineScope(Dispatchers.De
     private val runtime = clashRuntime {
         val store = ServiceStore(self)
 
+        // EasyClash: 注入 Mihomo 代理链 + 启动 EasyTier（须先于 ConfigurationModule 加载配置）
+        val easyTier = install(EasyTierModule(self))
+        easyTier.prepare()
+
         val close = install(CloseModule(self))
         val tun = install(TunModule(self))
         val config = install(ConfigurationModule(self))
@@ -73,7 +77,9 @@ class TunService : VpnService(), CoroutineScope by CoroutineScope(Dispatchers.De
             reason = e.message
         } finally {
             withContext(NonCancellable) {
+                // EasyClash: 先停 Mihomo（tun.close）再停 EasyTier（native 实例与 11080 释放）
                 tun.close()
+                easyTier.shutdown()
 
                 stopSelf()
             }
