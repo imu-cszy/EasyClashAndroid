@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -35,6 +36,9 @@ class EasyTierModule(service: Service) : Module<EasyTierModule.Event>(service) {
     }
 
     companion object {
+        /** prepare() 等待 EasyTier 就绪的上限（失败不阻塞 VPN 启动） */
+        private const val PREPARE_TIMEOUT_MS = 20_000L
+
         /** 当前模块实例（:background 进程内单例；UI 进程不可见，经广播/查询获取状态） */
         @Volatile
         var instance: EasyTierModule? = null
@@ -54,9 +58,13 @@ class EasyTierModule(service: Service) : Module<EasyTierModule.Event>(service) {
     /**
      * 宿主 Service 在 clashRuntime block 顶部、任何模块加载前调用：
      * 注入代理链（session 内存，ClashRuntime 的 reset/clearOverride 发生在 block 之前，
-     * 不受影响）并启动 EasyTier。返回是否真正启用。
+     * 不受影响）并**等待** EasyTier 就绪（实例运行 + 本地 SOCKS 监听），
+     * 这样 TunModule 打开 VPN 之前 EasyTier 的 underlay socket 已经建立（走物理网络，
+     * 不会被随后建立的 TUN 捕获）。等待有上限，失败不阻塞服务。
+     *
+     * @return 是否真正启用并就绪
      */
-    fun prepare(): Boolean {
+    suspend fun prepare(): Boolean {
         instance = this
         val config = EasyTierConfigStore(service).load(service)
         val errors = config.validate()
@@ -70,10 +78,7 @@ class EasyTierModule(service: Service) : Module<EasyTierModule.Event>(service) {
         diagnostics.log(Diagnostics.Category.CONFIG, "prepare", "easytier enabled, injecting mihomo chain")
         MihomoConfigComposer.apply(config)
         observeStatus()
-        moduleScope.launch {
-            manager.start()
-        }
-        return true
+        return withTimeoutOrNull(PREPARE_TIMEOUT_MS) { manager.start() } ?: false
     }
 
     /** 供 UI 跨进程查询：诊断快照（脱敏） */

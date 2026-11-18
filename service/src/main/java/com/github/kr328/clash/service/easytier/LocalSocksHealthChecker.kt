@@ -9,19 +9,25 @@ import java.net.InetSocketAddress
 import java.net.Socket
 
 /**
- * 本地 SOCKS5 分层健康检查器（RFC 1928 字节流实现，禁用 java.net.Proxy 以获得可分级的错误）。
+ * SOCKS5 分层健康检查器（RFC 1928 / 1929 字节流实现，不用 java.net.Proxy 以获得可分级的错误）。
  *
- * 分层（PROJECT_BRIEF §5 LocalSocksHealthChecker）：
- *  1. TCP_CONNECT  127.0.0.1:11080 是否监听；
- *  2. GREETING     SOCKS5 方法协商（支持 00 无认证 / 02 用户密码）；
- *  3. AUTH         用户名密码认证（如需）；
- *  4. CONNECT_REMOTE 经本地 SOCKS5 CONNECT 到 Lightsail 1080/1081。
+ * 分层：
+ *  1. TCP_CONNECT     连接本地 EasyTier SOCKS5（默认 127.0.0.1:11080）；
+ *  2. GREETING        方法协商（00 无认证 / 02 用户密码）；
+ *  3. AUTH            本地认证（如需）；
+ *  4. CONNECT_REMOTE  经隧道 CONNECT 到 Lightsail 端口；
+ *  5. REMOTE_GREETING 隧道内对 Lightsail SOCKS5 做二次协商（端到端验证）；
+ *  6. REMOTE_AUTH     Lightsail 认证（凭据错误会在此阶段暴露）；
+ *  7. REMOTE_CONNECT  经 Lightsail 出口 CONNECT 探测目标（证明出口真的可用）。
  */
 class LocalSocksHealthChecker(
     private val connectTimeoutMs: Int = 3000,
     private val readTimeoutMs: Int = 5000,
 ) {
-    enum class Stage { TCP_CONNECT, GREETING, AUTH, CONNECT_REMOTE }
+    enum class Stage {
+        TCP_CONNECT, GREETING, AUTH, CONNECT_REMOTE,
+        REMOTE_GREETING, REMOTE_AUTH, REMOTE_CONNECT,
+    }
 
     sealed class CheckResult {
         abstract val stage: Stage
@@ -42,37 +48,34 @@ class LocalSocksHealthChecker(
         withContext(Dispatchers.IO) {
             val start = System.currentTimeMillis()
             var socket: Socket? = null
+            var stage = Stage.TCP_CONNECT
             try {
                 socket = Socket()
                 socket.connect(InetSocketAddress(host, port), connectTimeoutMs)
                 socket.soTimeout = readTimeoutMs
-                val input = socket.getInputStream()
-                val output = socket.getOutputStream()
-                greet(input, output)
+                stage = Stage.GREETING
+                greet(socket.getInputStream(), socket.getOutputStream())
                 CheckResult.Ok(Stage.GREETING, System.currentTimeMillis() - start)
             } catch (e: Exception) {
-                failure(start, socket, e)
+                CheckResult.Failed(stage, System.currentTimeMillis() - start, describe(e))
             } finally {
                 runCatching { socket?.close() }
             }
         }
 
     /**
-     * 经本地 SOCKS5 对远端执行 CONNECT（3/4 级，即 Overlay 应用层连通性验收）。
-     *
-     * @param viaHost/viaPort 本地 EasyTier SOCKS5（如 127.0.0.1:11080）
-     * @param targetHost/targetPort 远端目标（如 10.126.126.10:1080）
+     * 经本地 SOCKS5 对远端执行 CONNECT（3/4 级，验证 Overlay 应用层可达性）。
+     * 只验证 TCP 可达，不做远端认证。
      */
     suspend fun checkThrough(
         viaHost: String,
         viaPort: Int,
         targetHost: String,
         targetPort: Int,
-        username: String? = null,
-        password: String? = null,
     ): CheckResult = withContext(Dispatchers.IO) {
         val start = System.currentTimeMillis()
         var socket: Socket? = null
+        var stage = Stage.TCP_CONNECT
         try {
             socket = Socket()
             socket.connect(InetSocketAddress(viaHost, viaPort), connectTimeoutMs)
@@ -80,36 +83,90 @@ class LocalSocksHealthChecker(
             val input = socket.getInputStream()
             val output = socket.getOutputStream()
 
-            val method = greet(input, output, username != null)
-            if (method == 0x02.toByte()) {
-                require(!(username == null || password == null)) { "server requires username/password auth" }
-                authenticate(input, output, username, password)
+            stage = Stage.GREETING
+            val method = greet(input, output)
+            if (method == METHOD_USER_PASS) {
+                stage = Stage.AUTH
+                throw IOException("local socks5 requires username/password but none configured")
             }
 
+            stage = Stage.CONNECT_REMOTE
             connectRemote(input, output, targetHost, targetPort)
             CheckResult.Ok(Stage.CONNECT_REMOTE, System.currentTimeMillis() - start)
         } catch (e: Exception) {
-            failure(start, socket, e)
+            CheckResult.Failed(stage, System.currentTimeMillis() - start, describe(e))
         } finally {
             runCatching { socket?.close() }
         }
     }
 
-    private fun failure(start: Long, socket: Socket?, e: Exception): CheckResult.Failed {
-        val connected = socket?.isConnected == true
-        val stage = if (!connected) Stage.TCP_CONNECT else Stage.CONNECT_REMOTE
-        return CheckResult.Failed(
-            stage = stage,
-            elapsedMs = System.currentTimeMillis() - start,
-            detail = describe(e),
-        )
+    /**
+     * 端到端检测（推荐）：本地 SOCKS5 → 隧道 CONNECT 远端 SOCKS5 → 远端协商/认证 →
+     * 远端 CONNECT 探测目标。
+     *
+     * 与 [checkThrough] 的区别：能区分「隧道/端口不可达」与「远端凭据错误」，
+     * 并证明出口真的能发出连接。
+     *
+     * @param probeHost/probePort 经远端出口探测的目标（默认 1.1.1.1:80）
+     */
+    suspend fun checkRemoteThrough(
+        viaHost: String,
+        viaPort: Int,
+        targetHost: String,
+        targetPort: Int,
+        username: String? = null,
+        password: String? = null,
+        probeHost: String = "1.1.1.1",
+        probePort: Int = 80,
+    ): CheckResult = withContext(Dispatchers.IO) {
+        val start = System.currentTimeMillis()
+        var socket: Socket? = null
+        var stage = Stage.TCP_CONNECT
+        try {
+            socket = Socket()
+            socket.connect(InetSocketAddress(viaHost, viaPort), connectTimeoutMs)
+            socket.soTimeout = readTimeoutMs
+            val input = socket.getInputStream()
+            val output = socket.getOutputStream()
+
+            // 1) 本地 EasyTier SOCKS5（无认证）
+            stage = Stage.GREETING
+            val localMethod = greet(input, output, offerUserPass = username != null)
+            if (localMethod == METHOD_USER_PASS) {
+                stage = Stage.AUTH
+                require(username != null && password != null) { "local socks5 requires auth but credentials empty" }
+                authenticate(input, output, username, password)
+            }
+
+            // 2) 经隧道连到 Lightsail SOCKS5 端口
+            stage = Stage.CONNECT_REMOTE
+            connectRemote(input, output, targetHost, targetPort)
+
+            // 3) 隧道内二级 SOCKS5：协商 + 认证
+            stage = Stage.REMOTE_GREETING
+            val remoteMethod = greet(input, output, offerUserPass = username != null)
+            if (remoteMethod == METHOD_USER_PASS) {
+                stage = Stage.REMOTE_AUTH
+                require(username != null && password != null) { "remote socks5 requires auth but credentials empty" }
+                authenticate(input, output, username, password)
+            }
+
+            // 4) 经出口探测目标
+            stage = Stage.REMOTE_CONNECT
+            connectRemote(input, output, probeHost, probePort)
+
+            CheckResult.Ok(Stage.REMOTE_CONNECT, System.currentTimeMillis() - start)
+        } catch (e: Exception) {
+            CheckResult.Failed(stage, System.currentTimeMillis() - start, describe(e))
+        } finally {
+            runCatching { socket?.close() }
+        }
     }
 
     /** 返回服务器选定的认证方法字节（0x00 无认证 / 0x02 用户密码） */
     @Throws(IOException::class)
-    private fun greet(input: InputStream, output: OutputStream, withAuth: Boolean = false): Byte {
-        // 支持 无认证(00) / 用户密码(02)
-        val methods = if (withAuth) byteArrayOf(0x05, 0x02, 0x00, 0x02) else byteArrayOf(0x05, 0x01, 0x00)
+    private fun greet(input: InputStream, output: OutputStream, offerUserPass: Boolean = false): Byte {
+        val methods = if (offerUserPass) byteArrayOf(0x05, 0x02, 0x00, 0x02) else byteArrayOf(0x05, 0x01, 0x00)
         output.write(methods)
         output.flush()
         val ver = input.read()
@@ -144,7 +201,7 @@ class LocalSocksHealthChecker(
         }
     }
 
-    /** DOMAIN 型 CONNECT；返回绑定地址可忽略，reply code 非 00 抛带码错误 */
+    /** DOMAIN 型 CONNECT；reply code 非 00 抛带码错误 */
     @Throws(IOException::class)
     private fun connectRemote(input: InputStream, output: OutputStream, host: String, port: Int) {
         val h = host.toByteArray(Charsets.US_ASCII)
@@ -165,8 +222,7 @@ class LocalSocksHealthChecker(
         val rep = input.read()
         if (ver != 0x05) throw IOException("bad SOCKS5 CONNECT reply: ver=$ver")
         if (rep != 0x00) throw IOException(replyMessage(rep))
-        input.read() // RSV
-        // 跳过 BND.ADDR/BND.PORT（ATYP 决定长度）
+        input.read() // RSV（漏读会把 0 当 ATYP，2026-11-18 单测抓到的真实 bug）
         when (val atyp = input.read()) {
             0x01 -> skip(input, 4 + 2)
             0x03 -> {
@@ -208,5 +264,9 @@ class LocalSocksHealthChecker(
         is IllegalArgumentException -> e.message ?: "invalid argument"
         is IOException -> e.message ?: e.javaClass.simpleName
         else -> "${e.javaClass.simpleName}: ${e.message}"
+    }
+
+    private companion object {
+        const val METHOD_USER_PASS: Byte = 0x02
     }
 }

@@ -64,11 +64,17 @@ data class EasyTierConfig(
 
     /**
      * 生成传给 runNetworkInstance 的 TOML（No-TUN + 仅回环 SOCKS5）。
+     *
+     * ⚠️ 顶层键（socks5_proxy 等）必须写在任何 `[table]` / `[[array-of-tables]]` 之前。
+     * TOML 规范下，`[[peer]]` 之后的裸键会归属到最后一个 peer 表，导致顶层
+     * `socks5_proxy` 实际为 None、EasyTier 的 SOCKS5 portal 不启动
+     * （2026-11-18 模拟器实测确认）。
      */
     fun toToml(): String = buildString {
         appendLine("instance_name = \"${escape(instanceName)}\"")
         appendLine("hostname = \"${escape(hostname)}\"")
         appendLine("ipv4 = \"${parseIpv4Cidr(ipv4)?.let { (ip, prefix) -> "$ip/$prefix" } ?: escape(ipv4)}\"")
+        appendLine("socks5_proxy = \"socks5://127.0.0.1:$socks5Port\"")
         appendLine()
         appendLine("[network_identity]")
         appendLine("network_name = \"${escape(networkName)}\"")
@@ -81,8 +87,6 @@ data class EasyTierConfig(
             appendLine("uri = \"${escape(peer)}\"")
         }
         if (peers.isNotEmpty()) appendLine()
-        appendLine("socks5_proxy = \"socks5://127.0.0.1:$socks5Port\"")
-        appendLine()
         appendLine("[flags]")
         appendLine("no_tun = true")
         appendLine("default_protocol = \"${escape(defaultProtocol)}\"")

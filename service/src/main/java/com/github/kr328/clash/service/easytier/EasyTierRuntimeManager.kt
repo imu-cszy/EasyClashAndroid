@@ -13,6 +13,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
@@ -61,6 +63,9 @@ class EasyTierRuntimeManager(
     private var monitorJob: Job? = null
     private val running = AtomicBoolean(false)
 
+    /** 串行化原生调用：保证 stop() 不会与 start() 的 run/parse 竞争 */
+    private val nativeLock = Mutex()
+
     /** 用户主动停止标志：true 时任何错误/网络事件都不触发自动重连 */
     @Volatile
     private var userStopped = true
@@ -84,26 +89,55 @@ class EasyTierRuntimeManager(
         }
 
         transition(State.STARTING)
+        when (val load = bridge.ensureLoaded()) {
+            is EasyTierNativeBridge.LoadResult.Failed -> {
+                diagnostics.log(Diagnostics.Category.NATIVE, "load", "failed: ${load.error}")
+                transition(State.FAILED) { it.copy(lastError = load.error) }
+                running.set(false)
+                return false
+            }
+
+            EasyTierNativeBridge.LoadResult.Ok ->
+                diagnostics.log(
+                    Diagnostics.Category.NATIVE, "load",
+                    EasyTierNativeBridge.loadDiagnostics ?: "already loaded"
+                )
+        }
         val toml = config.toToml()
         diagnostics.log(Diagnostics.Category.CONFIG, "toml", config.toMaskedToml())
-        try {
-            bridge.parseConfig(toml)
-            bridge.runNetworkInstance(toml)
-            diagnostics.log(Diagnostics.Category.NATIVE, "run", "instance started: ${config.instanceName}")
-        } catch (e: EasyTierException) {
-            diagnostics.log(Diagnostics.Category.NATIVE, "run", "failed: ${e.message}")
-            Log.w("EasyTier start failed: ${e.message}")
-            transition(State.FAILED) { it.copy(lastError = e.message) }
-            running.set(false)
-            return false
+        // 原生调用加锁：避免 stop() 与 start() 竞争（服务启动途中被停止时，
+        // stopAll 可能先于 runNetworkInstance 执行，导致实例泄漏、端口不释放）。
+        nativeLock.withLock {
+            if (userStopped) return false
+            try {
+                bridge.parseConfig(toml)
+                bridge.runNetworkInstance(toml)
+                diagnostics.log(Diagnostics.Category.NATIVE, "run", "instance started: ${config.instanceName}")
+            } catch (e: EasyTierException) {
+                diagnostics.log(Diagnostics.Category.NATIVE, "run", "failed: ${e.message}")
+                Log.w("EasyTier start failed: ${e.message}")
+                transition(State.FAILED) { it.copy(lastError = e.message) }
+                running.set(false)
+                return false
+            }
+            if (userStopped) {
+                // stop() 已请求：不要留下实例
+                runCatching { bridge.stopAll() }
+                diagnostics.log(Diagnostics.Category.NATIVE, "stop", "instance stopped during startup")
+                running.set(false)
+                transition(State.STOPPED) { Status(State.STOPPED) }
+                return false
+            }
         }
 
-        // 等待入网 + 本地 SOCKS 就绪（放行 Mihomo 的门槛）
+        // 等待「实例运行 + 本地 SOCKS5 监听」（放行 Mihomo 的门槛；peer 由监控循环继续跟进）
         val ready = withTimeoutOrNull(PEER_WAIT_TIMEOUT_MS) { waitForLocalSocks(config) } ?: false
         if (!ready) {
-            diagnostics.log(Diagnostics.Category.RUNTIME, "wait", "timed out waiting for peers/local socks")
-            // 不算彻底失败：进入监控循环重试（DEGRADED 语义）
+            diagnostics.log(Diagnostics.Category.RUNTIME, "wait", "timed out waiting for instance/local socks")
             transition(State.RECONNECTING) { it.copy(reconnects = it.reconnects + 1) }
+        }
+        if (userStopped) {
+            return false
         }
         monitorJob = scope.launch { monitorLoop(config) }
         return ready
@@ -111,17 +145,22 @@ class EasyTierRuntimeManager(
 
     /**
      * 停止实例与监控。用户触发；幂等。
+     *
+     * 先置 userStopped 并取消监控，再在 nativeLock 内 stopAll——保证与 start() 串行，
+     * 不会出现「stop 先执行、start 后创建实例」的泄漏。
      */
     suspend fun stop() {
         userStopped = true
         monitorJob?.cancel()
         monitorJob = null
         withContext(NonCancellable) {
-            try {
-                bridge.stopAll()
-                diagnostics.log(Diagnostics.Category.NATIVE, "stop", "all instances stopped")
-            } catch (e: EasyTierException) {
-                diagnostics.log(Diagnostics.Category.NATIVE, "stop", "failed: ${e.message}")
+            nativeLock.withLock {
+                try {
+                    bridge.stopAll()
+                    diagnostics.log(Diagnostics.Category.NATIVE, "stop", "all instances stopped")
+                } catch (e: EasyTierException) {
+                    diagnostics.log(Diagnostics.Category.NATIVE, "stop", "failed: ${e.message}")
+                }
             }
         }
         running.set(false)
@@ -138,23 +177,24 @@ class EasyTierRuntimeManager(
     private suspend fun waitForLocalSocks(config: EasyTierConfig): Boolean {
         val deadline = System.currentTimeMillis() + PEER_WAIT_TIMEOUT_MS
         while (System.currentTimeMillis() < deadline) {
+            if (userStopped) return false
             val info = currentInfo(config)
-            val hasPeer = info?.peers?.isNotEmpty() == true ||
-                info?.peerRoutePairs?.isNotEmpty() == true
-            transition(if (hasPeer) State.CHECKING_LOCAL_SOCKS else State.WAITING_FOR_PEER) {
+            val instanceRunning = info?.running == true
+            val socks = healthChecker.checkLocal(port = config.socks5Port)
+            val socksOk = socks is LocalSocksHealthChecker.CheckResult.Ok
+            transition(if (socksOk) State.CHECKING_LOCAL_SOCKS else State.WAITING_FOR_PEER) {
                 it.copy(
                     virtualIpv4 = info?.virtualIpv4,
                     peers = info.toPeerSummaries(),
+                    socks5Ok = socksOk,
                 )
             }
-            if (hasPeer) {
-                val r = healthChecker.checkLocal(port = config.socks5Port)
-                diagnostics.log(
-                    Diagnostics.Category.SOCKS5, "local",
-                    "port=${config.socks5Port} result=${r.javaClass.simpleName}(${(r as? LocalSocksHealthChecker.CheckResult.Failed)?.detail ?: "ok"})"
-                )
-                if (r is LocalSocksHealthChecker.CheckResult.Ok) return true
-            }
+            diagnostics.log(
+                Diagnostics.Category.SOCKS5, "local",
+                "port=${config.socks5Port} listening=$socksOk running=$instanceRunning"
+            )
+            // 门槛：实例已运行 + 本地 SOCKS5 监听（peer 由监控循环继续跟进）
+            if (instanceRunning && socksOk) return true
             delay(POLL_FAST_MS)
         }
         return false
@@ -214,13 +254,15 @@ class EasyTierRuntimeManager(
     }
 
     private suspend fun checkLightsail(config: EasyTierConfig) {
-        val normal = healthChecker.checkThrough(
+        // 端到端：本地 SOCKS5 → 隧道 → Lightsail SOCKS5 协商/认证 → 探测目标。
+        // 这样凭据错误会落在 REMOTE_AUTH 阶段，而不是笼统的"不可达"。
+        val normal = healthChecker.checkRemoteThrough(
             viaHost = "127.0.0.1", viaPort = config.socks5Port,
             targetHost = config.lightsailHost, targetPort = config.normalPort,
             username = config.normalUser.takeIf { it.isNotEmpty() },
             password = config.normalPassword.takeIf { it.isNotEmpty() },
         )
-        val warp = healthChecker.checkThrough(
+        val warp = healthChecker.checkRemoteThrough(
             viaHost = "127.0.0.1", viaPort = config.socks5Port,
             targetHost = config.lightsailHost, targetPort = config.warpPort,
             username = config.warpUser.takeIf { it.isNotEmpty() },
@@ -258,8 +300,8 @@ class EasyTierRuntimeManager(
             val conn = pair.peer?.conns?.firstOrNull { !it.isClosed } ?: pair.peer?.conns?.firstOrNull()
             PeerSummary(
                 hostname = route.hostname.ifBlank { pair.peer?.peerId?.toString() ?: "?" },
-                ipv4 = route.ipv4Addr?.address,
-                latencyUs = conn?.stats?.latencyUs?.takeIf { it > 0 } ?: route.pathLatency.takeIf { it >= 0 }?.let { it * 1000L },
+                ipv4 = route.ipv4,
+                latencyUs = conn?.stats?.latencyUs?.takeIf { it > 0 } ?: route.pathLatencyMs.takeIf { it >= 0 }?.let { it * 1000L },
                 p2p = conn?.isP2p,
                 rxBytes = conn?.stats?.rxBytes ?: 0,
                 txBytes = conn?.stats?.txBytes ?: 0,
@@ -272,8 +314,8 @@ class EasyTierRuntimeManager(
             val conn = byPeer[r.peerId]?.conns?.firstOrNull()
             PeerSummary(
                 hostname = r.hostname.ifBlank { r.peerId.toString() },
-                ipv4 = r.ipv4Addr?.address,
-                latencyUs = conn?.stats?.latencyUs?.takeIf { it > 0 } ?: r.pathLatency.takeIf { it >= 0 }?.let { it * 1000L },
+                ipv4 = r.ipv4,
+                latencyUs = conn?.stats?.latencyUs?.takeIf { it > 0 } ?: r.pathLatencyMs.takeIf { it >= 0 }?.let { it * 1000L },
                 p2p = conn?.isP2p,
                 rxBytes = conn?.stats?.rxBytes ?: 0,
                 txBytes = conn?.stats?.txBytes ?: 0,

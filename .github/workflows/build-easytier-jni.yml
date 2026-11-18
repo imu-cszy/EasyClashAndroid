@@ -54,16 +54,39 @@ jobs:
           sudo apt-get install -y protobuf-compiler
           protoc --version
 
-      - name: Build easytier-ffi + easytier-android-jni (arm64-v8a)
+      - name: Merge FFI into JNI cdylib (single self-contained .so)
+        run: |
+          # 见 script/build-easytier-jni.sh 头部说明：Android RTLD_LOCAL 下两库方案必然报
+          # cannot locate symbol，RTLD_GLOBAL 预加载也无效，故静态合并。
+          sed -i 's/crate-type = \["cdylib"\]/crate-type = ["cdylib", "rlib"]/' \
+            easytier-contrib/easytier-ffi/Cargo.toml
+          printf '\neasytier-ffi = { path = "../easytier-ffi" }\n' \
+            >> easytier-contrib/easytier-android-jni/Cargo.toml
+          python3 - <<'PY'
+          import io
+          p = "easytier-contrib/easytier-android-jni/src/lib.rs"
+          s = io.open(p, encoding="utf-8").read()
+          force = ('// EasyClash: 强制链接 easytier-ffi（未被引用的 rlib 不会进入 cdylib）。\n'
+                   '#[used]\n'
+                   'static _EASYTIER_FFI_FORCE_LINK: unsafe extern "C" fn(*const std::ffi::c_char) -> std::ffi::c_int =\n'
+                   '    easytier_ffi::parse_config;\n\n')
+          io.open(p, "w", encoding="utf-8", newline="").write(force + s)
+          PY
+
+      - name: Build merged easytier-android-jni (arm64-v8a)
         env:
           ANDROID_NDK_ROOT: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865
           LIBCLANG_PATH: ${{ env.ANDROID_HOME }}/ndk/29.0.14206865/toolchains/llvm/prebuilt/linux-x86_64/bin
         run: |
-          cargo ndk -t arm64-v8a build --release -p easytier-ffi -p easytier-android-jni
+          cargo ndk -t arm64-v8a build --release -p easytier-android-jni
           mkdir -p out/arm64-v8a
-          cp target/aarch64-linux-android/release/libeasytier_ffi.so out/arm64-v8a/
           cp target/aarch64-linux-android/release/libeasytier_android_jni.so out/arm64-v8a/
           sha256sum out/arm64-v8a/*.so
+          # 必须无未定义 EasyTier C API 符号
+          if llvm-nm -D --undefined-only out/arm64-v8a/libeasytier_android_jni.so \
+               | grep -E "parse_config|run_network_instance|collect_network_infos"; then
+            echo "unresolved EasyTier symbols remain"; exit 1
+          fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

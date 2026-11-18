@@ -75,6 +75,31 @@ class EasyTierConfigTest {
         assertFalse(toml.contains("network_secret"))
     }
 
+    /**
+     * TOML 规范：`[[peer]]` 之后的裸键属于最后一个 peer 表。若 socks5_proxy 放在 peer 之后，
+     * 顶层 socks5_proxy 会是 None，EasyTier 的 SOCKS5 portal 不启动（2026-11-18 实测）。
+     */
+    @Test
+    fun `socks5_proxy must precede any table header`() {
+        val toml = validConfig().toToml()
+        val proxyIdx = toml.indexOf("socks5_proxy")
+        val firstTableIdx = toml.indexOf("[network_identity]")
+        val firstPeerIdx = toml.indexOf("[[peer]]")
+        assertTrue("socks5_proxy missing", proxyIdx >= 0)
+        assertTrue("socks5_proxy must come before [network_identity]", proxyIdx < firstTableIdx)
+        assertTrue("socks5_proxy must come before [[peer]]", proxyIdx < firstPeerIdx)
+    }
+
+    @Test
+    fun `top level keys are all before first table`() {
+        val toml = validConfig().toToml()
+        val firstTableIdx = toml.indexOf("[network_identity]")
+        listOf("instance_name", "hostname", "ipv4", "socks5_proxy").forEach { key ->
+            val idx = toml.indexOf("$key =")
+            assertTrue("$key must be a top-level key before tables", idx in 0 until firstTableIdx)
+        }
+    }
+
     @Test
     fun `toMaskedToml hides secret and peer hosts`() {
         val masked = validConfig().toMaskedToml()
