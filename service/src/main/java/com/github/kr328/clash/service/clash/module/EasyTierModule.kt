@@ -31,8 +31,10 @@ import kotlinx.serialization.json.put
  *  - 状态变化广播 ACTION_EASYTIER_STATE（EXTRA_STATE_JSON）给 UI 进程；
  *  - 服务销毁时按序停止（宿主 finally 调用 [shutdown]，先于 Clash 资源清理）。
  *
- * 启动顺序遵守 docs/ARCHITECTURE.md §3.1：EasyTier 先行、本地 SOCKS 就绪后放行 Mihomo；
- * 停止顺序相反。
+ * 启动：注入代理链（必须早于 Profile 解析）→ 尽力等待 EasyTier 就绪（上限 3s，不阻塞 VPN 太久）
+ * → 放行 Mihomo。由于本应用已排除在自身 VPN 之外，underlay 不会被 TUN 捕获，
+ * 因此无需为 socket 顺序做长时间等待。
+ * 停止顺序相反：先停 Mihomo，再停 EasyTier。
  */
 class EasyTierModule(service: Service) : Module<EasyTierModule.Event>(service) {
     sealed class Event {
@@ -40,8 +42,14 @@ class EasyTierModule(service: Service) : Module<EasyTierModule.Event>(service) {
     }
 
     companion object {
-        /** prepare() 等待 EasyTier 就绪的上限（失败不阻塞 VPN 启动） */
-        private const val PREPARE_TIMEOUT_MS = 20_000L
+        /**
+         * prepare() 等待 EasyTier 就绪的上限。
+         *
+         * 之所以可以设得很短：本应用已通过 addDisallowedApplication(self) 排除在自身 VPN 之外，
+         * EasyTier 的 underlay 不会被 TUN 捕获，因此**不需要**为了 socket 顺序而阻塞 VPN 启动。
+         * 常见情况下本地 SOCKS5 在 1s 内就绪；异常时也不该让用户干等，隧道会在后台继续收敛。
+         */
+        private const val PREPARE_TIMEOUT_MS = 3_000L
 
         /** 当前模块实例（:background 进程内单例；UI 进程不可见，经广播/查询获取状态） */
         @Volatile
