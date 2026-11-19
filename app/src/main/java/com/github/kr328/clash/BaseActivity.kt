@@ -199,8 +199,15 @@ abstract class BaseActivity<D : Design<*>> : AppCompatActivity(),
     private fun applyDayNight(config: Configuration = resources.configuration) {
         val dayNight = queryDayNight(config)
         when (dayNight) {
-            DayNight.Night -> theme.applyStyle(R.style.AppThemeDark, true)
-            DayNight.Day -> theme.applyStyle(R.style.AppThemeLight, true)
+            DayNight.Night -> {
+                theme.applyStyle(R.style.AppThemeDark, true)
+                // EasyClash: 设计令牌与 AppTheme 解耦，新增令牌只改 tokens.xml
+                theme.applyStyle(R.style.UiTokensDark, true)
+            }
+            DayNight.Day -> {
+                theme.applyStyle(R.style.AppThemeLight, true)
+                theme.applyStyle(R.style.UiTokensLight, true)
+            }
         }
 
         window.isAllowForceDarkCompat = false

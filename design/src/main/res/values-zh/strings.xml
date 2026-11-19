@@ -334,4 +334,14 @@
     <string name="bundle_imported">已导入</string>
     <string name="bundle_export_failed">导出失败</string>
     <string name="bundle_import_failed">导入失败：%1$s</string>
+
+    <!-- EasyClash: 底部导航 -->
+    <string name="nav_dashboard">首页</string>
+    <string name="nav_profiles">配置</string>
+    <string name="nav_tools">工具</string>
+
+    <!-- EasyClash: 首页 -->
+    <string name="app_display_name">EasyClash</string>
+    <string name="status">状态</string>
+    <string name="tools">工具</string>
 </resources>

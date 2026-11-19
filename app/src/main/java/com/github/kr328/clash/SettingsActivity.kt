@@ -1,5 +1,7 @@
 package com.github.kr328.clash
 
+import com.github.kr328.clash.ui.bindBottomNav
+
 import com.github.kr328.clash.common.util.intent
 import com.github.kr328.clash.design.SettingsDesign
 import kotlinx.coroutines.isActive
@@ -10,6 +12,8 @@ class SettingsActivity : BaseActivity<SettingsDesign>() {
         val design = SettingsDesign(this)
 
         setContentDesign(design)
+
+        bindBottomNav(design.bottomNav, com.github.kr328.clash.design.view.BottomNavBar.Destination.Tools)
 
         while (isActive) {
             select<Unit> {

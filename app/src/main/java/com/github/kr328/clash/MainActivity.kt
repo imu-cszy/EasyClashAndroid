@@ -1,5 +1,7 @@
 package com.github.kr328.clash
 
+import com.github.kr328.clash.ui.bindBottomNav
+
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -34,6 +36,8 @@ class MainActivity : BaseActivity<MainDesign>() {
         val design = MainDesign(this)
 
         setContentDesign(design)
+
+        bindBottomNav(design.bottomNav, com.github.kr328.clash.design.view.BottomNavBar.Destination.Dashboard)
 
         design.fetch()
 

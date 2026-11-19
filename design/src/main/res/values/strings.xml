@@ -425,4 +425,14 @@
     <string name="bundle_imported">Bundle imported</string>
     <string name="bundle_export_failed">Export failed</string>
     <string name="bundle_import_failed">Import failed: %1$s</string>
+
+    <!-- EasyClash: bottom navigation -->
+    <string name="nav_dashboard">Dashboard</string>
+    <string name="nav_profiles">Profiles</string>
+    <string name="nav_tools">Tools</string>
+
+    <!-- EasyClash: dashboard -->
+    <string name="app_display_name">EasyClash</string>
+    <string name="status">Status</string>
+    <string name="tools">Tools</string>
 </resources>

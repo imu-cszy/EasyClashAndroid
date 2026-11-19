@@ -47,4 +47,28 @@
         <attr name="android:background" />
         <attr name="android:foreground" />
     </declare-styleable>
+
+    <!-- EasyClash UI tokens -->
+    <attr name="ui_surface" format="color" />
+    <attr name="ui_surface_container" format="color" />
+    <attr name="ui_surface_container_high" format="color" />
+    <attr name="ui_on_surface" format="color" />
+    <attr name="ui_on_surface_variant" format="color" />
+    <attr name="ui_outline" format="color" />
+    <attr name="ui_outline_variant" format="color" />
+    <attr name="ui_scrim" format="color" />
+    <attr name="ui_primary" format="color" />
+    <attr name="ui_on_primary" format="color" />
+    <attr name="ui_primary_container" format="color" />
+    <attr name="ui_on_primary_container" format="color" />
+    <attr name="ui_status_connected" format="color" />
+    <attr name="ui_status_connected_container" format="color" />
+    <attr name="ui_status_connecting" format="color" />
+    <attr name="ui_status_connecting_container" format="color" />
+    <attr name="ui_status_degraded" format="color" />
+    <attr name="ui_status_degraded_container" format="color" />
+    <attr name="ui_status_error" format="color" />
+    <attr name="ui_status_error_container" format="color" />
+    <attr name="ui_status_stopped" format="color" />
+    <attr name="ui_control_disabled" format="color" />
 </resources>

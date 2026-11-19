@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  EasyClash 设计令牌（方向 D · FlClash 风格）
+
+  为什么是 style 而不是 values-night/colors.xml：
+  本项目是「运行期切主题」（BaseActivity.applyDayNight -> theme.applyStyle），
+  DarkMode 有 Auto/ForceLight/ForceDark 三档，资源限定符无法表达 ForceLight。
+  因此颜色做成 theme attr，值写在这两个 style 里，由 applyStyle 合并进当前主题。
+
+  新增一个令牌 = attrs.xml 加一行 + 本文件两行，不需要改 12 个 style 块。
+-->
+<resources>
+    <style name="UiTokensLight">
+        <!-- 面 / 文字 -->
+        <item name="ui_surface">#EEECEF</item>
+        <item name="ui_surface_container">#FFFFFF</item>
+        <item name="ui_surface_container_high">#EEECEF</item>
+        <item name="ui_on_surface">#181C23</item>
+        <item name="ui_on_surface_variant">#414755</item>
+        <item name="ui_outline">#D9D6DC</item>
+        <item name="ui_outline_variant">#E6E3E8</item>
+        <item name="ui_scrim">#66000000</item>
+
+        <!-- 品牌 -->
+        <item name="ui_primary">#007AFF</item>
+        <item name="ui_on_primary">#FFFFFF</item>
+        <item name="ui_primary_container">#DCE9FF</item>
+        <item name="ui_on_primary_container">#00437A</item>
+
+        <!-- 状态（全部满足 WCAG AA） -->
+        <item name="ui_status_connected">#17663A</item>
+        <item name="ui_status_connected_container">#DFF3E6</item>
+        <item name="ui_status_connecting">#8A5300</item>
+        <item name="ui_status_connecting_container">#FFF0D6</item>
+        <item name="ui_status_degraded">#A34A00</item>
+        <item name="ui_status_degraded_container">#FFE7D8</item>
+        <item name="ui_status_error">#B3261E</item>
+        <item name="ui_status_error_container">#FCE4E2</item>
+        <item name="ui_status_stopped">#66686E</item>
+        <item name="ui_control_disabled">#BBB8BE</item>
+    </style>
+
+    <style name="UiTokensDark">
+        <item name="ui_surface">#0E0E11</item>
+        <item name="ui_surface_container">#1C1C1F</item>
+        <item name="ui_surface_container_high">#2A2A2E</item>
+        <item name="ui_on_surface">#F2F2F7</item>
+        <item name="ui_on_surface_variant">#9A9AA0</item>
+        <item name="ui_outline">#3A3A40</item>
+        <item name="ui_outline_variant">#2C2C31</item>
+        <item name="ui_scrim">#99000000</item>
+
+        <item name="ui_primary">#0A84FF</item>
+        <item name="ui_on_primary">#FFFFFF</item>
+        <item name="ui_primary_container">#10243D</item>
+        <item name="ui_on_primary_container">#D6E6FF</item>
+
+        <item name="ui_status_connected">#6FD79F</item>
+        <item name="ui_status_connected_container">#14301C</item>
+        <item name="ui_status_connecting">#F2C078</item>
+        <item name="ui_status_connecting_container">#33260F</item>
+        <item name="ui_status_degraded">#FFB68A</item>
+        <item name="ui_status_degraded_container">#3A1E0C</item>
+        <item name="ui_status_error">#F2B8B5</item>
+        <item name="ui_status_error_container">#3E1513</item>
+        <item name="ui_status_stopped">#9A9AA0</item>
+        <item name="ui_control_disabled">#4A4A50</item>
+    </style>
+</resources>

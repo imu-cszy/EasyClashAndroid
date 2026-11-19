@@ -1,5 +1,7 @@
 package com.github.kr328.clash
 
+import com.github.kr328.clash.ui.bindBottomNav
+
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -28,6 +30,8 @@ class ProfilesActivity : BaseActivity<ProfilesDesign>() {
         val design = ProfilesDesign(this)
 
         setContentDesign(design)
+
+        bindBottomNav(design.bottomNav, com.github.kr328.clash.design.view.BottomNavBar.Destination.Profiles)
 
         val ticker = ticker(TimeUnit.MINUTES.toMillis(1))
 

@@ -6,23 +6,11 @@
             name="self"
             type="com.github.kr328.clash.design.MainDesign" />
         <variable
-            name="clashRunning"
-            type="boolean" />
-        <variable
-            name="forwarded"
-            type="String" />
-        <variable
             name="mode"
             type="String" />
         <variable
             name="profileName"
             type="String" />
-        <variable
-            name="colorClashStarted"
-            type="int" />
-        <variable
-            name="colorClashStopped"
-            type="int" />
         <variable
             name="hasProviders"
             type="boolean" />
@@ -40,116 +28,528 @@
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:layout_marginBottom="88dp"
+            android:clipToPadding="false"
             android:scrollbars="none">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:animateLayoutChanges="true"
-                android:clipToPadding="false"
                 android:orientation="vertical"
-                android:paddingHorizontal="@dimen/main_padding_horizontal"
-                android:paddingTop="@{self.surface.insets.top}"
-                android:paddingBottom="@{self.surface.insets.bottom}">
+                android:paddingStart="@dimen/ui_space_20"
+                android:paddingTop="@{(float) self.surface.insets.top + 8}"
+                android:paddingEnd="@dimen/ui_space_20"
+                android:paddingBottom="@dimen/ui_space_8">
 
+                <!-- 顶部：Logo + 标题 + 设置 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/ui_toolbar_height"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:contentDescription="@string/app_display_name"
+                        android:src="@drawable/ic_clash" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/ui_space_12"
+                        android:layout_weight="1"
+                        android:letterSpacing="-0.02"
+                        android:text="@string/app_display_name"
+                        android:textColor="?attr/ui_on_surface"
+                        android:textSize="24sp"
+                        android:textStyle="bold" />
+
+                    <ImageView
+                        android:layout_width="@dimen/ui_icon_touch_target"
+                        android:layout_height="@dimen/ui_icon_touch_target"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:clickable="true"
+                        android:contentDescription="@string/settings"
+                        android:focusable="true"
+                        android:onClick="@{() -> self.request(Request.OpenSettings)}"
+                        android:padding="12dp"
+                        android:src="@drawable/ic_baseline_settings"
+                        app:tint="?attr/ui_on_surface" />
+                </LinearLayout>
+
+                <!-- 状态卡 -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ui_space_4"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:onClick="@{() -> self.request(Request.ToggleStatus)}"
+                    app:cardBackgroundColor="?attr/ui_surface_container"
+                    app:cardCornerRadius="@dimen/ui_radius_card"
+                    app:cardElevation="1dp"
+                    app:strokeWidth="0dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="@dimen/ui_space_20">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:contentDescription="@string/status"
+                                android:src="@drawable/ic_status_pulse"
+                                app:tint="?attr/ui_on_surface_variant" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/ui_space_8"
+                                android:layout_weight="1"
+                                android:text="@string/status"
+                                android:textColor="?attr/ui_on_surface"
+                                android:textSize="16sp"
+                                android:textStyle="bold" />
+
+                            <TextView
+                                android:id="@+id/status_chip"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/bg_chip"
+                                android:paddingStart="@dimen/ui_space_12"
+                                android:paddingTop="6dp"
+                                android:paddingEnd="@dimen/ui_space_12"
+                                android:paddingBottom="6dp"
+                                android:text="@string/stopped"
+                                android:textSize="12sp"
+                                android:textStyle="bold" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="@dimen/ui_space_16"
+                            android:gravity="bottom"
+                            android:orientation="horizontal">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:id="@+id/status_value"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:letterSpacing="-0.02"
+                                    android:maxLines="1"
+                                    android:text="@string/stopped"
+                                    android:textColor="?attr/ui_on_surface"
+                                    android:textSize="32sp"
+                                    android:textStyle="bold" />
+
+                                <TextView
+                                    android:id="@+id/status_hint"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="@dimen/ui_space_4"
+                                    android:text="@string/tap_to_start"
+                                    android:textColor="?attr/ui_on_surface_variant"
+                                    android:textSize="13sp" />
+                            </LinearLayout>
+
+                            <FrameLayout
+                                android:id="@+id/action_button"
+                                android:layout_width="56dp"
+                                android:layout_height="56dp"
+                                android:layout_marginStart="@dimen/ui_space_16"
+                                android:background="@drawable/bg_circle_tile"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:onClick="@{() -> self.request(Request.ToggleStatus)}">
+
+                                <ImageView
+                                    android:id="@+id/action_icon"
+                                    android:layout_width="24dp"
+                                    android:layout_height="24dp"
+                                    android:layout_gravity="center"
+                                    android:contentDescription="@string/running"
+                                    android:src="@drawable/ic_play_filled" />
+                            </FrameLayout>
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- 代理 / 配置 -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:minHeight="@dimen/main_top_banner_height"
+                    android:layout_marginTop="@dimen/ui_space_12"
+                    android:baselineAligned="false"
                     android:orientation="horizontal">
 
-                    <FrameLayout
-                        android:layout_width="@dimen/large_item_header_layout_size"
-                        android:layout_height="@dimen/large_item_header_layout_size">
-
-                        <View
-                            android:layout_width="@dimen/main_logo_size"
-                            android:layout_height="@dimen/main_logo_size"
-                            android:layout_gravity="center"
-                            android:background="@drawable/ic_clash" />
-                    </FrameLayout>
-
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:text="@string/application_name"
-                        android:textAppearance="@style/TextAppearance.MaterialComponents.Headline6" />
+                        android:layout_weight="1"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:onClick="@{() -> self.request(Request.OpenProxy)}"
+                        app:cardBackgroundColor="?attr/ui_surface_container"
+                        app:cardCornerRadius="@dimen/ui_radius_card"
+                        app:cardElevation="1dp"
+                        app:strokeWidth="0dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="@dimen/ui_space_16">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/proxy"
+                                android:textColor="?attr/ui_on_surface_variant"
+                                android:textSize="12sp" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/ui_space_8"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:text="@{mode != null ? mode : @string/rule_mode}"
+                                    android:textColor="?attr/ui_on_surface"
+                                    android:textSize="16sp"
+                                    android:textStyle="bold" />
+
+                                <ImageView
+                                    android:layout_width="18dp"
+                                    android:layout_height="18dp"
+                                    android:contentDescription="@string/proxy"
+                                    android:src="@drawable/ic_chevron_right"
+                                    app:tint="?attr/ui_on_surface_variant" />
+                            </LinearLayout>
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
+
+                    <Space
+                        android:layout_width="@dimen/ui_space_12"
+                        android:layout_height="1dp" />
+
+                    <com.google.android.material.card.MaterialCardView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:onClick="@{() -> self.request(Request.OpenProfiles)}"
+                        app:cardBackgroundColor="?attr/ui_surface_container"
+                        app:cardCornerRadius="@dimen/ui_radius_card"
+                        app:cardElevation="1dp"
+                        app:strokeWidth="0dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:padding="@dimen/ui_space_16">
+
+                            <TextView
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/profile"
+                                android:textColor="?attr/ui_on_surface_variant"
+                                android:textSize="12sp" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="@dimen/ui_space_8"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:ellipsize="end"
+                                    android:maxLines="1"
+                                    android:text="@{profileName != null ? profileName : @string/not_selected}"
+                                    android:textColor="?attr/ui_on_surface"
+                                    android:textSize="16sp"
+                                    android:textStyle="bold" />
+
+                                <ImageView
+                                    android:layout_width="18dp"
+                                    android:layout_height="18dp"
+                                    android:contentDescription="@string/profile"
+                                    android:src="@drawable/ic_chevron_right"
+                                    app:tint="?attr/ui_on_surface_variant" />
+                            </LinearLayout>
+                        </LinearLayout>
+                    </com.google.android.material.card.MaterialCardView>
                 </LinearLayout>
 
-                <com.github.kr328.clash.design.view.LargeActionCard
+                <!-- 工具 -->
+                <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginVertical="@dimen/main_card_margin_vertical"
-                    android:onClick="@{() -> self.request(Request.ToggleStatus)}"
-                    android:theme="@style/AppThemeDark"
-                    app:cardBackgroundColor="@{clashRunning ? colorClashStarted : colorClashStopped}"
-                    app:icon="@{clashRunning ? @drawable/ic_outline_check_circle : @drawable/ic_outline_not_interested}"
-                    app:subtext="@{clashRunning ? @string/format_traffic_forwarded(forwarded) : @string/tap_to_start}"
-                    app:text="@{clashRunning ? @string/running : @string/stopped}">
-                    <requestFocus />
-                </com.github.kr328.clash.design.view.LargeActionCard>
+                    android:layout_marginStart="@dimen/ui_space_4"
+                    android:layout_marginTop="@dimen/ui_space_24"
+                    android:layout_marginBottom="@dimen/ui_space_8"
+                    android:letterSpacing="0.08"
+                    android:text="@string/tools"
+                    android:textColor="?attr/ui_on_surface_variant"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
-                <com.github.kr328.clash.design.view.LargeActionCard
+                <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginVertical="@dimen/main_card_margin_vertical"
-                    android:onClick="@{() -> self.request(Request.OpenProxy)}"
-                    android:visibility="@{clashRunning ? View.VISIBLE : View.GONE}"
-                    app:icon="@drawable/ic_baseline_apps"
-                    app:subtext="@{mode}"
-                    app:text="@string/proxy" />
+                    app:cardBackgroundColor="?attr/ui_surface_container"
+                    app:cardCornerRadius="@dimen/ui_radius_card"
+                    app:cardElevation="1dp"
+                    app:strokeWidth="0dp">
 
-                <com.github.kr328.clash.design.view.LargeActionCard
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginVertical="@dimen/main_card_margin_vertical"
-                    android:onClick="@{() -> self.request(Request.OpenProfiles)}"
-                    app:icon="@drawable/ic_baseline_view_list"
-                    app:subtext="@{profileName != null ? @string/format_profile_activated(profileName) : @string/not_selected}"
-                    app:text="@string/profile" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
 
-                <com.github.kr328.clash.design.view.LargeActionLabel
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_marginVertical="@dimen/main_label_margin_vertical"
-                    android:onClick="@{() -> self.request(Request.OpenProviders)}"
-                    android:visibility="@{clashRunning &amp;&amp; hasProviders ? View.VISIBLE : View.GONE}"
-                    app:icon="@drawable/ic_baseline_swap_vertical_circle"
-                    app:text="@string/providers" />
+                        <!-- Providers（仅运行且有 provider 时显示） -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="@dimen/ui_row_height"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center_vertical"
+                            android:onClick="@{() -> self.request(Request.OpenProviders)}"
+                            android:orientation="horizontal"
+                            android:paddingStart="@dimen/ui_space_20"
+                            android:paddingEnd="@dimen/ui_space_20"
+                            android:visibility="@{hasProviders ? View.VISIBLE : View.GONE}">
 
-                <com.github.kr328.clash.design.view.LargeActionLabel
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginVertical="@dimen/main_label_margin_vertical"
-                    android:onClick="@{() -> self.request(Request.OpenLogs)}"
-                    app:icon="@drawable/ic_baseline_assignment"
-                    app:text="@string/logs" />
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:contentDescription="@string/providers"
+                                android:src="@drawable/ic_baseline_swap_vertical_circle"
+                                app:tint="?attr/ui_on_surface" />
 
-                <com.github.kr328.clash.design.view.LargeActionLabel
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginVertical="@dimen/main_label_margin_vertical"
-                    android:onClick="@{() -> self.request(Request.OpenSettings)}"
-                    app:icon="@drawable/ic_baseline_settings"
-                    app:text="@string/settings" />
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/ui_space_16"
+                                android:layout_weight="1"
+                                android:text="@string/providers"
+                                android:textColor="?attr/ui_on_surface"
+                                android:textSize="16sp" />
 
-                <com.github.kr328.clash.design.view.LargeActionLabel
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginVertical="@dimen/main_label_margin_vertical"
-                    android:onClick="@{() -> self.request(Request.OpenHelp)}"
-                    app:icon="@drawable/ic_baseline_help_center"
-                    app:text="@string/help" />
+                            <ImageView
+                                android:layout_width="18dp"
+                                android:layout_height="18dp"
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_chevron_right"
+                                app:tint="?attr/ui_on_surface_variant" />
+                        </LinearLayout>
 
-                <com.github.kr328.clash.design.view.LargeActionLabel
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginVertical="@dimen/main_label_margin_vertical"
-                    android:onClick="@{() -> self.request(Request.OpenAbout)}"
-                    app:icon="@drawable/ic_baseline_info"
-                    app:text="@string/about" />
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="?attr/ui_outline_variant"
+                            android:visibility="@{hasProviders ? View.VISIBLE : View.GONE}" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="@dimen/ui_row_height"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center_vertical"
+                            android:onClick="@{() -> self.request(Request.OpenLogs)}"
+                            android:orientation="horizontal"
+                            android:paddingStart="@dimen/ui_space_20"
+                            android:paddingEnd="@dimen/ui_space_20">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:contentDescription="@string/logs"
+                                android:src="@drawable/ic_baseline_assignment"
+                                app:tint="?attr/ui_on_surface" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/ui_space_16"
+                                android:layout_weight="1"
+                                android:text="@string/logs"
+                                android:textColor="?attr/ui_on_surface"
+                                android:textSize="16sp" />
+
+                            <ImageView
+                                android:layout_width="18dp"
+                                android:layout_height="18dp"
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_chevron_right"
+                                app:tint="?attr/ui_on_surface_variant" />
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="?attr/ui_outline_variant" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="@dimen/ui_row_height"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center_vertical"
+                            android:onClick="@{() -> self.request(Request.OpenSettings)}"
+                            android:orientation="horizontal"
+                            android:paddingStart="@dimen/ui_space_20"
+                            android:paddingEnd="@dimen/ui_space_20">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:contentDescription="@string/settings"
+                                android:src="@drawable/ic_baseline_settings"
+                                app:tint="?attr/ui_on_surface" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/ui_space_16"
+                                android:layout_weight="1"
+                                android:text="@string/settings"
+                                android:textColor="?attr/ui_on_surface"
+                                android:textSize="16sp" />
+
+                            <ImageView
+                                android:layout_width="18dp"
+                                android:layout_height="18dp"
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_chevron_right"
+                                app:tint="?attr/ui_on_surface_variant" />
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="?attr/ui_outline_variant" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="@dimen/ui_row_height"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center_vertical"
+                            android:onClick="@{() -> self.request(Request.OpenHelp)}"
+                            android:orientation="horizontal"
+                            android:paddingStart="@dimen/ui_space_20"
+                            android:paddingEnd="@dimen/ui_space_20">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:contentDescription="@string/help"
+                                android:src="@drawable/ic_baseline_help_center"
+                                app:tint="?attr/ui_on_surface" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/ui_space_16"
+                                android:layout_weight="1"
+                                android:text="@string/help"
+                                android:textColor="?attr/ui_on_surface"
+                                android:textSize="16sp" />
+
+                            <ImageView
+                                android:layout_width="18dp"
+                                android:layout_height="18dp"
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_chevron_right"
+                                app:tint="?attr/ui_on_surface_variant" />
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:background="?attr/ui_outline_variant" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="@dimen/ui_row_height"
+                            android:background="?attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center_vertical"
+                            android:onClick="@{() -> self.request(Request.OpenAbout)}"
+                            android:orientation="horizontal"
+                            android:paddingStart="@dimen/ui_space_20"
+                            android:paddingEnd="@dimen/ui_space_20">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:contentDescription="@string/about"
+                                android:src="@drawable/ic_baseline_info"
+                                app:tint="?attr/ui_on_surface" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="@dimen/ui_space_16"
+                                android:layout_weight="1"
+                                android:text="@string/about"
+                                android:textColor="?attr/ui_on_surface"
+                                android:textSize="16sp" />
+
+                            <ImageView
+                                android:layout_width="18dp"
+                                android:layout_height="18dp"
+                                android:contentDescription="@null"
+                                android:src="@drawable/ic_chevron_right"
+                                app:tint="?attr/ui_on_surface_variant" />
+                        </LinearLayout>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
         </ScrollView>
+
+        <com.github.kr328.clash.design.view.BottomNavBar
+            android:id="@+id/bottom_nav"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/ui_nav_height"
+            android:layout_gravity="bottom"
+            android:layout_marginHorizontal="@dimen/ui_space_16"
+            android:layout_marginBottom="@dimen/ui_space_12"
+            android:background="@drawable/bg_nav_pill"
+            android:elevation="8dp" />
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 </layout>

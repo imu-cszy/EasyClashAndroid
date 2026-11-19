@@ -1,5 +1,7 @@
 package com.github.kr328.clash.design
 
+import com.github.kr328.clash.design.util.applySurfaceInsets
+
 import android.content.Context
 import android.view.View
 import com.github.kr328.clash.design.databinding.DesignSettingsBinding
@@ -18,6 +20,14 @@ class SettingsDesign(context: Context) : Design<SettingsDesign.Request>(context)
 
     override val root: View
         get() = binding.root
+
+    /** EasyClash: 底部导航（由宿主 Activity 绑定跳转） */
+    val bottomNav: com.github.kr328.clash.design.view.BottomNavBar
+        get() = binding.bottomNav
+
+    init {
+        binding.bottomNav.applySurfaceInsets(surface)
+    }
 
     init {
         binding.self = this

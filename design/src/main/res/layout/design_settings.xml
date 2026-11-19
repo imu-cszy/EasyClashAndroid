@@ -19,6 +19,7 @@
             android:id="@+id/scroll_root"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
+            android:layout_marginBottom="88dp"
             android:scrollbars="none">
 
             <LinearLayout
@@ -75,6 +76,16 @@
 
             <include layout="@layout/common_activity_bar" />
         </com.github.kr328.clash.design.view.ActivityBarLayout>
+
+        <com.github.kr328.clash.design.view.BottomNavBar
+            android:id="@+id/bottom_nav"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/ui_nav_height"
+            android:layout_gravity="bottom"
+            android:layout_marginHorizontal="@dimen/ui_space_16"
+            android:layout_marginBottom="@dimen/ui_space_12"
+            android:background="@drawable/bg_nav_pill"
+            android:elevation="8dp" />
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 </layout>
