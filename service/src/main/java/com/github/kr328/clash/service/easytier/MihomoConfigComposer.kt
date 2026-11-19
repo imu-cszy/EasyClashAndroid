@@ -88,8 +88,35 @@ object MihomoConfigComposer {
                 "proxies" to JsonArray(listOf(etLocal, awsNormal, awsWarp)),
                 "proxy-groups" to JsonArray(listOf(group)),
                 "rules" to rules,
+                // 把用户配置里所有指向 overlay 网段的代理自动接到 ET-LOCAL。
+                // 这些代理在 Windows 上可直接连（EasyTier 是系统 TUN），但在 Android 上
+                // EasyTier 为 No-TUN，只有经 127.0.0.1:11080 才能进入 overlay；
+                // 不自动改写的话，用户原有 profile 的节点在手机上全部不可用。
+                "overlayDialer" to buildJsonObject {
+                    put("proxy", PROXY_ET_LOCAL)
+                    put("cidr", overlayCidr(config.ipv4))
+                },
             )
         ).toString()
+    }
+
+    /**
+     * 由虚拟 IP 推导 overlay 网段，如 "10.126.126.20/24" -> "10.126.126.0/24"。
+     * 无法解析时返回 null（此时不做自动改写）。
+     */
+    fun overlayCidr(ipv4: String): String? {
+        val text = ipv4.trim()
+        val addrPart = text.substringBefore('/')
+        val prefix = text.substringAfter('/', "24").toIntOrNull() ?: 24
+        if (prefix !in 0..32) return null
+        val octets = addrPart.split('.').mapNotNull { it.toIntOrNull() }
+        if (octets.size != 4 || octets.any { it !in 0..255 }) return null
+        val value = (octets[0].toLong() shl 24) or (octets[1].toLong() shl 16) or
+            (octets[2].toLong() shl 8) or octets[3].toLong()
+        val mask = if (prefix == 0) 0L else (0xFFFFFFFFL shl (32 - prefix)) and 0xFFFFFFFFL
+        val network = value and mask
+        return "${(network ushr 24) and 0xFF}.${(network ushr 16) and 0xFF}." +
+            "${(network ushr 8) and 0xFF}.${network and 0xFF}/$prefix"
     }
 
     /**

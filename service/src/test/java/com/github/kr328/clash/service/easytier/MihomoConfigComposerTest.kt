@@ -101,4 +101,26 @@ class MihomoConfigComposerTest {
         assertNull(normal["username"])
         assertNull(normal["password"])
     }
+
+    @Test
+    fun `overlayCidr derives network address`() {
+        assertEquals("10.126.126.0/24", MihomoConfigComposer.overlayCidr("10.126.126.20/24"))
+        assertEquals("10.126.126.0/24", MihomoConfigComposer.overlayCidr("10.126.126.20"))
+        assertEquals("10.0.0.0/8", MihomoConfigComposer.overlayCidr("10.1.2.3/8"))
+        assertEquals("10.126.126.16/28", MihomoConfigComposer.overlayCidr("10.126.126.20/28"))
+        assertNull(MihomoConfigComposer.overlayCidr("not-an-ip"))
+        assertNull(MihomoConfigComposer.overlayCidr("10.1.2.3/99"))
+    }
+
+    /**
+     * 用户 profile 里指向 overlay 的代理（如 10.126.126.10:1080）在 Android 上不可直连，
+     * 必须由 Go 侧自动补 dialer-proxy=ET-LOCAL；这里锁定载荷契约。
+     */
+    @Test
+    fun `payload carries overlay dialer contract`() {
+        val obj = Json.parseToJsonElement(compose(validConfig())!!).jsonObject
+        val overlay = obj["overlayDialer"]!!.jsonObject
+        assertEquals("ET-LOCAL", overlay["proxy"]!!.jsonPrimitive.content)
+        assertEquals("10.126.126.0/24", overlay["cidr"]!!.jsonPrimitive.content)
+    }
 }

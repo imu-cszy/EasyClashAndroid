@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"net/netip"
 	"sync"
 
 	"github.com/metacubex/mihomo/config"
@@ -37,11 +38,18 @@ func getEasyTierInjection() string {
 	return easyTierInjection
 }
 
+type easyTierOverlayDialer struct {
+	Proxy string `json:"proxy"`
+	CIDR  string `json:"cidr"`
+}
+
 type easyTierInjectionPayload struct {
 	Proxies     []map[string]any `json:"proxies"`
 	ProxyGroups []map[string]any `json:"proxy-groups"`
 	// 需要前置的规则（如 UID,<本应用>,DIRECT，防止 EasyTier underlay 被 TUN 捕获成环）
 	Rules []string `json:"rules"`
+	// 把用户配置中指向 overlay 网段的代理自动接上 dialer-proxy（Android 上 EasyTier 为 No-TUN）
+	OverlayDialer *easyTierOverlayDialer `json:"overlayDialer"`
 }
 
 func patchEasyTier(cfg *config.RawConfig, _ string) error {
@@ -77,6 +85,37 @@ func patchEasyTier(cfg *config.RawConfig, _ string) error {
 
 	cfg.Proxy = append(cfg.Proxy, payload.Proxies...)
 	cfg.ProxyGroup = append(cfg.ProxyGroup, payload.ProxyGroups...)
+
+	// 用户 profile 里指向 overlay 网段的代理（例如 10.126.126.10:1080）在 Android 上
+	// 不可直连——EasyTier 是 No-TUN，只能经本地 SOCKS5 进入 overlay。自动补 dialer-proxy。
+	if payload.OverlayDialer != nil && payload.OverlayDialer.Proxy != "" {
+		if prefix, err := netip.ParsePrefix(payload.OverlayDialer.CIDR); err == nil {
+			patched := 0
+			for _, p := range cfg.Proxy {
+				if _, has := p["dialer-proxy"]; has {
+					continue
+				}
+				server, ok := p["server"].(string)
+				if !ok {
+					continue
+				}
+				addr, err := netip.ParseAddr(server)
+				if err != nil {
+					continue
+				}
+				if prefix.Contains(addr) {
+					p["dialer-proxy"] = payload.OverlayDialer.Proxy
+					patched++
+				}
+			}
+			if patched > 0 {
+				log.Infoln("EasyClash: attached dialer-proxy=%s to %d overlay proxies (cidr=%s)",
+					payload.OverlayDialer.Proxy, patched, payload.OverlayDialer.CIDR)
+			}
+		} else {
+			log.Warnln("EasyClash: invalid overlay cidr: %s", payload.OverlayDialer.CIDR)
+		}
+	}
 
 	// 注入规则前置于用户规则，保证最高优先级；同时去重，避免重复加载时叠加
 	if len(payload.Rules) > 0 {
