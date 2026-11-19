@@ -11,6 +11,7 @@ import com.github.kr328.clash.common.constants.Components
 import com.github.kr328.clash.common.log.Log
 import com.github.kr328.clash.service.clash.clashRuntime
 import com.github.kr328.clash.service.clash.module.*
+import com.github.kr328.clash.service.easytier.EasyTierConfigStore
 import com.github.kr328.clash.service.model.AccessControlMode
 import com.github.kr328.clash.service.store.ServiceStore
 import com.github.kr328.clash.service.util.cancelAndJoinBlocking
@@ -28,6 +29,10 @@ class TunService : VpnService(), CoroutineScope by CoroutineScope(Dispatchers.De
 
     private val runtime = clashRuntime {
         val store = ServiceStore(self)
+
+        // EasyClash: 注入 Mihomo 代理链 + 启动 EasyTier（须先于 ConfigurationModule 加载配置）
+        val easyTier = install(EasyTierModule(self))
+        easyTier.prepare()
 
         val close = install(CloseModule(self))
         val tun = install(TunModule(self))
@@ -73,7 +78,9 @@ class TunService : VpnService(), CoroutineScope by CoroutineScope(Dispatchers.De
             reason = e.message
         } finally {
             withContext(NonCancellable) {
+                // EasyClash: 先停 Mihomo（tun.close）再停 EasyTier（native 实例与 11080 释放）
                 tun.close()
+                easyTier.shutdown()
 
                 stopSelf()
             }
@@ -213,6 +220,20 @@ class TunService : VpnService(), CoroutineScope by CoroutineScope(Dispatchers.De
 
             if (store.allowBypass) {
                 allowBypass()
+            }
+
+            // EasyClash: 尝试把本应用排除在 VPN 之外，使 EasyTier 的 underlay socket 不进入
+            // 自己的 TUN（否则当流量被路由到 AWS-EXIT 时会形成环路）。
+            // Android 可能拒绝 disallow 自身包名，失败时由注入的 UID,DIRECT 规则兜底。
+            if (EasyTierConfigStore(this@TunService).load(this@TunService).enabled) {
+                val excluded = runCatching {
+                    addDisallowedApplication(packageName)
+                    true
+                }.getOrElse {
+                    Log.w("addDisallowedApplication(self) rejected: ${it.message}")
+                    false
+                }
+                Log.i("EasyTier: self excluded from VPN = $excluded")
             }
 
             TunModule.TunDevice(

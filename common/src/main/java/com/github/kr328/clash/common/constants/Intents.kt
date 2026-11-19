@@ -24,7 +24,15 @@ object Intents {
     val ACTION_PROFILE_LOADED = "$packageName.intent.action.PROFILE_LOADED"
     val ACTION_OVERRIDE_CHANGED = "$packageName.intent.action.OVERRIDE_CHANGED"
 
+    // EasyClash: EasyTier 状态广播（:background -> UI 进程）
+    val ACTION_EASYTIER_STATE = "$packageName.intent.action.EASYTIER_STATE"
+    // EasyClash: 诊断查询（UI -> :background）与响应（:background -> UI）
+    val ACTION_EASYTIER_REQUEST_DIAG = "$packageName.intent.action.EASYTIER_REQUEST_DIAG"
+    val ACTION_EASYTIER_DIAG = "$packageName.intent.action.EASYTIER_DIAG"
+
     const val EXTRA_STOP_REASON = "stop_reason"
     const val EXTRA_UUID = "uuid"
     const val EXTRA_FAIL_REASON = "fail_reason"
+    const val EXTRA_STATE_JSON = "state_json"
+    const val EXTRA_DIAG_TEXT = "diag_text"
 }

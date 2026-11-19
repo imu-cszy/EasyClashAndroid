@@ -19,6 +19,7 @@ import (
 var processors = []processor{
 	patchExternalController, // must before patchOverride, so we only apply ExternalController in Override settings
 	patchOverride,
+	patchEasyTier, // EasyClash: merge-inject ET-LOCAL/AWS proxies after user override
 	patchGeneral,
 	patchProfile,
 	patchDns,

@@ -173,6 +173,11 @@
             android:exported="false"
             android:label="@string/meta_features" />
         <activity
+            android:name=".EasyTierSettingsActivity"
+            android:configChanges="uiMode"
+            android:exported="false"
+            android:label="@string/et_settings_title" />
+        <activity
             android:name=".AccessControlActivity"
             android:configChanges="uiMode"
             android:exported="false"

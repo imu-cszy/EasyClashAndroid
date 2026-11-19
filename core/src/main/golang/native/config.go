@@ -66,6 +66,11 @@ func clearOverride(slot C.int) {
 	config.ClearOverride(config.OverrideSlot(slot))
 }
 
+//export setEasyTierProxies
+func setEasyTierProxies(content C.c_string) {
+	config.SetEasyTierProxies(C.GoString(content))
+}
+
 //export setAgeSecretKey
 func setAgeSecretKey(key C.c_string) {
 	if key == nil {

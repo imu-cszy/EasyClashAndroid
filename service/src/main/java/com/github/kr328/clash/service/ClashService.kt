@@ -24,6 +24,10 @@ class ClashService : BaseService() {
     private val runtime = clashRuntime {
         val store = ServiceStore(self)
 
+        // EasyClash: 注入 Mihomo 代理链 + 启动 EasyTier（须先于 ConfigurationModule 加载配置）
+        val easyTier = install(EasyTierModule(self))
+        easyTier.prepare()
+
         val close = install(CloseModule(self))
         val config = install(ConfigurationModule(self))
         val network = install(NetworkObserveModule(self))
@@ -61,6 +65,9 @@ class ClashService : BaseService() {
             reason = e.message
         } finally {
             withContext(NonCancellable) {
+                // EasyClash: 停止 EasyTier（native 实例与本地 SOCKS 释放）
+                easyTier.shutdown()
+
                 stopSelf()
             }
         }

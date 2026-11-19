@@ -207,6 +207,14 @@ object Clash {
         )
     }
 
+    /**
+     * EasyClash: 设置 EasyTier 代理链注入（session 级内存，不落盘）。
+     * 传 null/空串清除注入。内容格式见 service 模块 MihomoConfigComposer。
+     */
+    fun setEasyTierProxies(json: String?) {
+        Bridge.nativeSetEasyTierProxies(json ?: "")
+    }
+
     fun clearOverride(slot: OverrideSlot) {
         Bridge.nativeClearOverride(slot.ordinal)
     }
