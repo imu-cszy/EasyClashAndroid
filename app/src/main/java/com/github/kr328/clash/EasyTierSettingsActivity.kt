@@ -76,9 +76,14 @@ class EasyTierSettingsActivity : BaseActivity<EasyTierSettingsDesign>() {
 
     private fun showDiagnostics(text: String) {
         pendingDiagDialog?.dismiss()
+
+        // 等宽 + 可选取：诊断里全是 "NATIVE/run: ..." 这类键值行，等宽更容易逐行对照
+        val content = layoutInflater.inflate(R.layout.dialog_easytier_diagnostics, null)
+        content.findViewById<android.widget.TextView>(R.id.diagnostics_text).text = text
+
         pendingDiagDialog = android.app.AlertDialog.Builder(this)
             .setTitle(R.string.et_view_diagnostics)
-            .setMessage(text)
+            .setView(content)
             .setPositiveButton(android.R.string.copy) { _, _ ->
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 clipboard.setPrimaryClip(

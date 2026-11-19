@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- EasyTier 诊断日志：等宽正文 + 代码块底色，长内容可滚动、可选取 -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <TextView
+        android:id="@+id/diagnostics_text"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/ui_space_20"
+        android:layout_marginVertical="@dimen/ui_space_12"
+        android:background="@drawable/bg_code_block"
+        android:fontFamily="monospace"
+        android:lineSpacingExtra="3dp"
+        android:padding="@dimen/ui_space_12"
+        android:textColor="?attr/ui_on_surface"
+        android:textIsSelectable="true"
+        android:textSize="12sp" />
+</ScrollView>
