@@ -25,6 +25,10 @@ class SettingsDesign(context: Context) : Design<SettingsDesign.Request>(context)
     val bottomNav: com.github.kr328.clash.design.view.BottomNavBar
         get() = binding.bottomNav
 
+    /** 提示条锚定到导航栏上方，避免被遮挡 */
+    override val snackbarAnchor: View?
+        get() = binding.bottomNav
+
     init {
         binding.bottomNav.applySurfaceInsets(surface)
     }

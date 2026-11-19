@@ -37,6 +37,10 @@ class MainDesign(context: Context) : Design<MainDesign.Request>(context) {
     val bottomNav: com.github.kr328.clash.design.view.BottomNavBar
         get() = binding.bottomNav
 
+    /** 提示条锚定到导航栏上方，避免被遮挡 */
+    override val snackbarAnchor: View?
+        get() = binding.bottomNav
+
     private var running = false
     private var forwardedText = ""
     private var modeText = ""

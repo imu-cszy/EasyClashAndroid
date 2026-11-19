@@ -19,6 +19,13 @@ abstract class Design<R>(val context: Context) :
     val surface = Surface()
     val requests: Channel<R> = Channel(Channel.UNLIMITED)
 
+    /**
+     * EasyClash: Snackbar 锚点。
+     * 页面有悬浮底部导航时必须指向它，否则提示会被导航栏（elevation 更高）遮住。
+     */
+    open val snackbarAnchor: View?
+        get() = null
+
     suspend fun showToast(
         resId: Int,
         duration: ToastDuration,
@@ -41,7 +48,10 @@ abstract class Design<R>(val context: Context) :
                     ToastDuration.Long -> Snackbar.LENGTH_LONG
                     ToastDuration.Indefinite -> Snackbar.LENGTH_INDEFINITE
                 }
-            ).apply(configure).show()
+            ).apply {
+                snackbarAnchor?.let { setAnchorView(it) }
+                configure()
+            }.show()
         }
     }
 
