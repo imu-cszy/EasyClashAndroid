@@ -430,6 +430,10 @@
     <string name="bundle_imported">Bundle imported</string>
     <string name="bundle_export_failed">Export failed</string>
     <string name="bundle_import_failed">Import failed: %1$s</string>
+    <string name="shortcut_pin_title">Home screen shortcut</string>
+    <string name="shortcut_pin_summary">One tap to start or stop</string>
+    <string name="shortcut_pin_unsupported">This launcher does not support pinned shortcuts</string>
+    <string name="shortcut_pin_requested">Confirm on the home screen</string>
     <string name="bundle_import_from_file">From a file</string>
     <string name="bundle_import_from_link">From a link or QR code</string>
     <string name="bundle_link_title">Import from link</string>

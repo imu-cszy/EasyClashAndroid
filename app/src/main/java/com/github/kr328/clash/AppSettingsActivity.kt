@@ -2,12 +2,14 @@ package com.github.kr328.clash
 
 import android.content.ComponentName
 import android.content.pm.PackageManager
+import android.widget.Toast
 import com.github.kr328.clash.common.util.componentName
 import com.github.kr328.clash.design.AppSettingsDesign
 import com.github.kr328.clash.design.model.Behavior
 import com.github.kr328.clash.design.store.UiStore.Companion.mainActivityAlias
 import com.github.kr328.clash.service.store.ServiceStore
 import com.github.kr328.clash.util.ApplicationObserver
+import com.github.kr328.clash.util.Shortcuts
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.selects.select
 
@@ -33,9 +35,22 @@ class AppSettingsActivity : BaseActivity<AppSettingsDesign>(), Behavior {
                         else -> Unit
                     }
                 }
-                design.requests.onReceive {
-                    ApplicationObserver.createdActivities.forEach {
-                        it.recreate()
+                design.requests.onReceive { request ->
+                    when (request) {
+                        AppSettingsDesign.Request.ReCreateAllActivities ->
+                            ApplicationObserver.createdActivities.forEach {
+                                it.recreate()
+                            }
+                        AppSettingsDesign.Request.CreateShortcut -> {
+                            val requested = Shortcuts.requestPinnedToggle(this@AppSettingsActivity)
+
+                            Toast.makeText(
+                                this@AppSettingsActivity,
+                                if (requested) com.github.kr328.clash.design.R.string.shortcut_pin_requested
+                                else com.github.kr328.clash.design.R.string.shortcut_pin_unsupported,
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        }
                     }
                 }
             }

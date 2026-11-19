@@ -22,7 +22,8 @@ class AppSettingsDesign(
     onHideIconChange: (hide: Boolean) -> Unit,
 ) : Design<AppSettingsDesign.Request>(context) {
     enum class Request {
-        ReCreateAllActivities
+        ReCreateAllActivities,
+        CreateShortcut,
     }
 
     private val binding = DesignSettingsCommonBinding
@@ -49,6 +50,14 @@ class AppSettingsDesign(
             )
 
             category(R.string.interface_)
+
+            clickable(
+                title = R.string.shortcut_pin_title,
+                icon = R.drawable.ic_outline_add_to_home_screen,
+                summary = R.string.shortcut_pin_summary,
+            ) {
+                clicked { requests.trySend(Request.CreateShortcut) }
+            }
 
             selectableList(
                 value = uiStore::darkMode,

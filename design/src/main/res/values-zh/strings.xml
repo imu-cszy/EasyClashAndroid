@@ -339,6 +339,10 @@
     <string name="bundle_imported">已导入</string>
     <string name="bundle_export_failed">导出失败</string>
     <string name="bundle_import_failed">导入失败：%1$s</string>
+    <string name="shortcut_pin_title">桌面快捷方式</string>
+    <string name="shortcut_pin_summary">一个图标，一键启动或停止</string>
+    <string name="shortcut_pin_unsupported">当前桌面不支持添加快捷方式</string>
+    <string name="shortcut_pin_requested">请在桌面上确认添加</string>
     <string name="bundle_import_from_file">从文件导入</string>
     <string name="bundle_import_from_link">从链接 / 二维码导入</string>
     <string name="bundle_link_title">从链接导入</string>
