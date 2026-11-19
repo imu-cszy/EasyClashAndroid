@@ -20,12 +20,40 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.withContext
 import java.util.*
 import java.util.concurrent.TimeUnit
 import com.github.kr328.clash.design.R
 
 class ProfilesActivity : BaseActivity<ProfilesDesign>() {
+    /** 扫码结果（只传 URL；失败给 null） */
+    private val scannedLinks = kotlinx.coroutines.channels.Channel<String?>(kotlinx.coroutines.channels.Channel.CONFLATED)
+
+    private val scanLauncher = registerForActivityResult(
+        io.github.g00fy2.quickie.ScanQRCode()
+    ) { result ->
+        when (result) {
+            is io.github.g00fy2.quickie.QRResult.QRSuccess ->
+                scannedLinks.trySend(
+                    result.content.rawValue ?: result.content.rawBytes?.let { String(it) }
+                )
+            is io.github.g00fy2.quickie.QRResult.QRMissingPermission -> {
+                lifecycleScope.launch {
+                    design?.showToast(getString(R.string.import_from_qr_no_permission), ToastDuration.Long)
+                }
+                scannedLinks.trySend(null)
+            }
+            is io.github.g00fy2.quickie.QRResult.QRError -> {
+                lifecycleScope.launch {
+                    design?.showToast(getString(R.string.import_from_qr_exception), ToastDuration.Long)
+                }
+                scannedLinks.trySend(null)
+            }
+            else -> Unit
+        }
+    }
+
     override suspend fun main() {
         val design = ProfilesDesign(this)
 
@@ -91,8 +119,10 @@ class ProfilesActivity : BaseActivity<ProfilesDesign>() {
                         }
                         ProfilesDesign.Request.ImportBundle -> launch {
                             importBundle()
-                        }
-                    }
+                        }                    }
+                }
+                scannedLinks.onReceive { url ->
+                    if (url != null) importBundleFromUrl(url)
                 }
                 if (activityStarted) {
                     ticker.onReceive {
@@ -150,8 +180,20 @@ class ProfilesActivity : BaseActivity<ProfilesDesign>() {
         }
     }
 
-    /** 导入配置包（明文或加密） */
+    /** 导入配置包：先选来源（文件 / 链接·二维码） */
     private suspend fun importBundle() {
+        when (BundleDialogs.requestImportMethod(this)) {
+            BundleDialogs.ImportMethod.File -> importBundleFromFile()
+            BundleDialogs.ImportMethod.Link -> when (val link = BundleDialogs.requestImportLink(this)) {
+                is BundleDialogs.ImportLink.Url -> importBundleFromUrl(link.url)
+                BundleDialogs.ImportLink.Scan -> scanLauncher.launch(null)
+                null -> Unit
+            }
+            null -> Unit
+        }
+    }
+
+    private suspend fun importBundleFromFile() {
         val uri = try {
             startActivityForResult(
                 androidx.activity.result.contract.ActivityResultContracts.OpenDocument(),
@@ -167,6 +209,78 @@ class ProfilesActivity : BaseActivity<ProfilesDesign>() {
             }.getOrNull()
         } ?: return
 
+        importBundleBytes(bytes)
+    }
+
+    /**
+     * 从局域网链接拉取配置包。
+     *
+     * 这是手机 ↔ 电脑互传的主路径：电脑端起一个临时 HTTP 服务并生成二维码，
+     * 手机扫码（或手输 URL）即可拿到同一份 `.ecb`，不经过任何第三方。
+     */
+    private suspend fun importBundleFromUrl(url: String) {
+        design?.showToast(getString(R.string.bundle_downloading), ToastDuration.Short)
+
+        val result = withContext(Dispatchers.IO) { downloadBundle(url) }
+
+        if (result.isFailure) {
+            com.github.kr328.clash.common.log.Log.w(
+                "Bundle download failed: ${result.exceptionOrNull()?.message}"
+            )
+        }
+
+        result.onSuccess { importBundleBytes(it) }
+            .onFailure {
+                design?.showToast(
+                    getString(R.string.bundle_download_failed, it.message ?: url),
+                    ToastDuration.Long,
+                )
+            }
+    }
+
+    private fun downloadBundle(url: String): Result<ByteArray> = runCatching {
+        require(url.startsWith("http://") || url.startsWith("https://")) {
+            getString(R.string.bundle_link_invalid)
+        }
+
+        val connection = (java.net.URL(url).openConnection() as java.net.HttpURLConnection).apply {
+            connectTimeout = 10_000
+            readTimeout = 20_000
+            instanceFollowRedirects = true
+            requestMethod = "GET"
+        }
+
+        try {
+            if (connection.responseCode !in 200..299) {
+                throw IllegalStateException("HTTP ${connection.responseCode}")
+            }
+
+            val limit = 32L * 1024 * 1024
+            val out = java.io.ByteArrayOutputStream()
+
+            connection.inputStream.use { input ->
+                val buffer = ByteArray(64 * 1024)
+                var total = 0L
+
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read < 0) break
+
+                    total += read
+                    if (total > limit) throw IllegalStateException(getString(R.string.bundle_too_large))
+
+                    out.write(buffer, 0, read)
+                }
+            }
+
+            out.toByteArray()
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    /** 明文/加密包的统一收尾：问密码 → 导入 → 刷新列表 */
+    private suspend fun importBundleBytes(bytes: ByteArray) {
         val password = try {
             if (withContext(Dispatchers.IO) { BundleCodec.isEncrypted(bytes) }) {
                 BundleDialogs.requestPassword(this, R.string.bundle_import_password_title)
@@ -187,6 +301,7 @@ class ProfilesActivity : BaseActivity<ProfilesDesign>() {
                 ToastDuration.Long,
             )
         } catch (e: Exception) {
+            com.github.kr328.clash.common.log.Log.w("Bundle import failed: ${e.message}")
             design?.showToast(
                 getString(R.string.bundle_import_failed, e.message ?: ""),
                 ToastDuration.Long,

@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config xmlns:tools="http://schemas.android.com/tools"
     tools:ignore="AcceptsUserCertificates">
-    <base-config>
+    <!--
+      允许明文 HTTP：
+      * 订阅链接由用户自己填写，很多自建/内网地址就是 http；
+      * 配置包互传走局域网临时服务，没有证书。
+      这两类都不由本应用决定协议，禁掉明文只会让功能直接不可用。
+    -->
+    <base-config cleartextTrafficPermitted="true">
         <trust-anchors>
             <certificates src="system" />
             <certificates src="user" />

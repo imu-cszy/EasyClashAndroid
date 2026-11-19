@@ -158,4 +158,110 @@ object BundleDialogs {
             dialog.show()
             cont.invokeOnCancellation { dialog.dismiss() }
         }
+
+    /** 导入方式：SAF 选文件 / 链接或二维码 */
+    enum class ImportMethod { File, Link }
+
+    /** 链接来源：用户手输，或要求打开扫码 */
+    sealed class ImportLink {
+        data class Url(val url: String) : ImportLink()
+        object Scan : ImportLink()
+    }
+
+    suspend fun requestImportMethod(context: Context): ImportMethod? =
+        suspendCancellableCoroutine { cont ->
+            var resumed = false
+
+            val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.bundle_import)
+                .setItems(
+                    arrayOf(
+                        context.getString(R.string.bundle_import_from_file),
+                        context.getString(R.string.bundle_import_from_link),
+                    )
+                ) { _, which ->
+                    if (!resumed) {
+                        resumed = true
+                        cont.resume(if (which == 0) ImportMethod.File else ImportMethod.Link)
+                    }
+                }
+                .setNegativeButton(android.R.string.cancel) { _, _ -> }
+                .setOnCancelListener {
+                    if (!resumed) {
+                        resumed = true
+                        cont.resume(null)
+                    }
+                }
+                .create()
+
+            dialog.setOnDismissListener {
+                if (!resumed) {
+                    resumed = true
+                    cont.resume(null)
+                }
+            }
+
+            dialog.show()
+            cont.invokeOnCancellation { dialog.dismiss() }
+        }
+
+    /**
+     * 链接输入框：正向按钮确认手输链接，中性按钮直接扫码。
+     * @return null 表示取消
+     */
+    suspend fun requestImportLink(context: Context): ImportLink? =
+        suspendCancellableCoroutine { cont ->
+            var resumed = false
+
+            val padding = (20 * context.resources.displayMetrics.density).toInt()
+            val input = EditText(context).apply {
+                this.hint = context.getString(R.string.bundle_link_hint)
+                inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+                setPadding(padding, padding / 4, padding, 0)
+            }
+
+            val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.bundle_link_title)
+                .setView(input)
+                .setPositiveButton(android.R.string.ok, null)
+                .setNeutralButton(R.string.scan) { _, _ ->
+                    if (!resumed) {
+                        resumed = true
+                        cont.resume(ImportLink.Scan)
+                    }
+                }
+                .setNegativeButton(android.R.string.cancel) { _, _ ->
+                    if (!resumed) {
+                        resumed = true
+                        cont.resume(null)
+                    }
+                }
+                .setOnCancelListener {
+                    if (!resumed) {
+                        resumed = true
+                        cont.resume(null)
+                    }
+                }
+                .create()
+
+            dialog.setOnShowListener {
+                dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                    val url = input.text?.toString()?.trim().orEmpty()
+
+                    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                        input.error = context.getString(R.string.bundle_link_invalid)
+                        return@setOnClickListener
+                    }
+
+                    if (!resumed) {
+                        resumed = true
+                        cont.resume(ImportLink.Url(url))
+                    }
+                    dialog.dismiss()
+                }
+            }
+
+            dialog.show()
+            cont.invokeOnCancellation { dialog.dismiss() }
+        }
 }

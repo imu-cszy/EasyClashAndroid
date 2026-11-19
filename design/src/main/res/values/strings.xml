@@ -430,6 +430,15 @@
     <string name="bundle_imported">Bundle imported</string>
     <string name="bundle_export_failed">Export failed</string>
     <string name="bundle_import_failed">Import failed: %1$s</string>
+    <string name="bundle_import_from_file">From a file</string>
+    <string name="bundle_import_from_link">From a link or QR code</string>
+    <string name="bundle_link_title">Import from link</string>
+    <string name="bundle_link_hint">http://192.168.1.2:8000/easyclash.ecb</string>
+    <string name="bundle_link_invalid">Enter an http(s) link to an .ecb file</string>
+    <string name="bundle_downloading">Downloading bundle…</string>
+    <string name="bundle_download_failed">Download failed: %1$s</string>
+    <string name="bundle_too_large">Bundle is larger than 32 MB</string>
+    <string name="scan">Scan</string>
 
     <!-- EasyClash: bottom navigation -->
     <string name="nav_dashboard">Dashboard</string>

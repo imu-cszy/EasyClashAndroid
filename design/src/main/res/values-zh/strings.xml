@@ -339,6 +339,15 @@
     <string name="bundle_imported">已导入</string>
     <string name="bundle_export_failed">导出失败</string>
     <string name="bundle_import_failed">导入失败：%1$s</string>
+    <string name="bundle_import_from_file">从文件导入</string>
+    <string name="bundle_import_from_link">从链接 / 二维码导入</string>
+    <string name="bundle_link_title">从链接导入</string>
+    <string name="bundle_link_hint">http://192.168.1.2:8000/easyclash.ecb</string>
+    <string name="bundle_link_invalid">请输入指向 .ecb 文件的 http(s) 链接</string>
+    <string name="bundle_downloading">正在下载配置包…</string>
+    <string name="bundle_download_failed">下载失败：%1$s</string>
+    <string name="bundle_too_large">配置包超过 32MB</string>
+    <string name="scan">扫码</string>
 
     <!-- EasyClash: 底部导航 -->
     <string name="nav_dashboard">首页</string>
