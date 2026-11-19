@@ -2,7 +2,10 @@ package com.github.kr328.clash
 
 import com.github.kr328.clash.ui.bindBottomNav
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -25,13 +28,42 @@ import com.github.kr328.clash.util.withClash
 import com.github.kr328.clash.util.withProfile
 import com.github.kr328.clash.core.bridge.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 import com.github.kr328.clash.design.R as DesignR
 
 class MainActivity : BaseActivity<MainDesign>() {
+    /** EasyTier 最近一次状态广播（null = 未启用 EasyTier 或尚未收到） */
+    private var easyTierState: String? = null
+    private var easyTierError: String? = null
+    private var easyTierIp: String? = null
+
+    private val easyTierStates = Channel<String?>(Channel.CONFLATED)
+
+    /** HOME 五态：VPN 没起来就是 Stopped；起来后再看 EasyTier 的细分状态 */
+    private fun homeStatus(): MainDesign.Status {
+        if (!clashRunning) return MainDesign.Status.Stopped
+
+        return when (easyTierState) {
+            "STARTING", "WAITING_FOR_PEER", "CHECKING_LOCAL_SOCKS",
+            "CHECKING_LIGHTSAIL", "RECONNECTING" -> MainDesign.Status.Connecting
+            "DEGRADED" -> MainDesign.Status.Degraded
+            "FAILED" -> MainDesign.Status.Error
+            else -> MainDesign.Status.Connected
+        }
+    }
+
+    private val easyTierReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.`package` != packageName) return
+            easyTierStates.trySend(intent.getStringExtra(Intents.EXTRA_STATE_JSON))
+        }
+    }
+
     override suspend fun main() {
         val design = MainDesign(this)
 
@@ -43,57 +75,89 @@ class MainActivity : BaseActivity<MainDesign>() {
 
         val ticker = ticker(TimeUnit.SECONDS.toMillis(1))
 
-        while (isActive) {
-            select<Unit> {
-                events.onReceive {
-                    when (it) {
-                        Event.ActivityStart,
-                        Event.ServiceRecreated,
-                        Event.ClashStop, Event.ClashStart,
-                        Event.ProfileLoaded, Event.ProfileChanged -> design.fetch()
-                        else -> Unit
-                    }
-                }
-                design.requests.onReceive {
-                    when (it) {
-                        MainDesign.Request.ToggleStatus -> {
-                            if (clashRunning)
-                                stopClashService()
-                            else
-                                design.startClash()
+        ContextCompat.registerReceiver(
+            this,
+            easyTierReceiver,
+            IntentFilter(Intents.ACTION_EASYTIER_STATE),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+
+        try {
+            while (isActive) {
+                select<Unit> {
+                    easyTierStates.onReceive { design.applyEasyTierState(it) }
+                    events.onReceive {
+                        when (it) {
+                            Event.ActivityStart,
+                            Event.ServiceRecreated,
+                            Event.ClashStop, Event.ClashStart,
+                            Event.ProfileLoaded, Event.ProfileChanged -> design.fetch()
+                            else -> Unit
                         }
-                        MainDesign.Request.OpenProxy ->
-                            startActivity(ProxyActivity::class.intent)
-                        MainDesign.Request.OpenProfiles ->
-                            startActivity(ProfilesActivity::class.intent)
-                        MainDesign.Request.OpenProviders ->
-                            startActivity(ProvidersActivity::class.intent)
-                        MainDesign.Request.OpenLogs -> {
-                            if (LogcatService.running) {
-                                startActivity(LogcatActivity::class.intent)
-                            } else {
-                                startActivity(LogsActivity::class.intent)
+                    }
+                    design.requests.onReceive {
+                        when (it) {
+                            MainDesign.Request.ToggleStatus -> {
+                                if (clashRunning)
+                                    stopClashService()
+                                else
+                                    design.startClash()
                             }
+                            MainDesign.Request.OpenProxy ->
+                                startActivity(ProxyActivity::class.intent)
+                            MainDesign.Request.OpenProfiles ->
+                                startActivity(ProfilesActivity::class.intent)
+                            MainDesign.Request.OpenProviders ->
+                                startActivity(ProvidersActivity::class.intent)
+                            MainDesign.Request.OpenLogs -> {
+                                if (LogcatService.running) {
+                                    startActivity(LogcatActivity::class.intent)
+                                } else {
+                                    startActivity(LogsActivity::class.intent)
+                                }
+                            }
+                            MainDesign.Request.OpenSettings ->
+                                startActivity(SettingsActivity::class.intent)
+                            MainDesign.Request.OpenHelp ->
+                                startActivity(HelpActivity::class.intent)
+                            MainDesign.Request.OpenAbout ->
+                                design.showAbout(queryAppVersionName())
                         }
-                        MainDesign.Request.OpenSettings ->
-                            startActivity(SettingsActivity::class.intent)
-                        MainDesign.Request.OpenHelp ->
-                            startActivity(HelpActivity::class.intent)
-                        MainDesign.Request.OpenAbout ->
-                            design.showAbout(queryAppVersionName())
                     }
-                }
-                if (clashRunning) {
-                    ticker.onReceive {
-                        design.fetchTraffic()
+                    if (clashRunning) {
+                        ticker.onReceive {
+                            design.fetchTraffic()
+                        }
                     }
                 }
             }
+        } finally {
+            runCatching { unregisterReceiver(easyTierReceiver) }
         }
     }
 
+    private suspend fun MainDesign.applyEasyTierState(json: String?) {
+        if (json != null) {
+            runCatching {
+                val payload = JSONObject(json)
+
+                easyTierState = payload.optString("state").ifEmpty { null }
+                easyTierError = payload.optString("last_error").ifEmpty { null }
+                easyTierIp = payload.optString("virtual_ipv4").ifEmpty { null }
+            }
+        } else {
+            easyTierState = null
+            easyTierError = null
+            easyTierIp = null
+        }
+
+        setStatus(homeStatus(), easyTierError)
+        setVirtualIp(easyTierIp)
+    }
+
     private suspend fun MainDesign.fetch() {
-        setClashRunning(clashRunning)
+        setStatus(homeStatus(), easyTierError)
+        setVirtualIp(easyTierIp)
 
         val state = withClash {
             queryTunnelState()

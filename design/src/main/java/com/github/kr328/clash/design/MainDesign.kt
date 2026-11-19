@@ -1,8 +1,10 @@
 package com.github.kr328.clash.design
 
+import android.animation.ObjectAnimator
 import android.content.Context
 import android.content.res.ColorStateList
 import android.view.View
+import android.view.animation.AccelerateDecelerateInterpolator
 import androidx.appcompat.app.AlertDialog
 import com.github.kr328.clash.core.model.TunnelState
 import com.github.kr328.clash.core.util.trafficTotal
@@ -16,6 +18,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class MainDesign(context: Context) : Design<MainDesign.Request>(context) {
+    /** 首页状态卡的五个状态（由 VPN 运行状态 + EasyTier 状态归并而来） */
+    enum class Status {
+        Stopped,
+        Connecting,
+        Connected,
+        Degraded,
+        Error,
+    }
+
     enum class Request {
         ToggleStatus,
         OpenProxy,
@@ -41,9 +52,21 @@ class MainDesign(context: Context) : Design<MainDesign.Request>(context) {
     override val snackbarAnchor: View?
         get() = binding.bottomNav
 
-    private var running = false
+    private var status = Status.Stopped
+    private var statusDetail: String? = null
+    private var virtualIp: String? = null
     private var forwardedText = ""
     private var modeText = ""
+
+    /** "连接中" 时 chip 的呼吸动画 */
+    private val pulse by lazy {
+        ObjectAnimator.ofFloat(binding.statusChip, View.ALPHA, 1f, 0.55f).apply {
+            duration = 900
+            repeatMode = ObjectAnimator.REVERSE
+            repeatCount = ObjectAnimator.INFINITE
+            interpolator = AccelerateDecelerateInterpolator()
+        }
+    }
 
     init {
         binding.bottomNav.applySurfaceInsets(surface)
@@ -55,9 +78,17 @@ class MainDesign(context: Context) : Design<MainDesign.Request>(context) {
         }
     }
 
-    suspend fun setClashRunning(running: Boolean) {
+    suspend fun setStatus(status: Status, detail: String? = null) {
         withContext(Dispatchers.Main) {
-            this@MainDesign.running = running
+            this@MainDesign.status = status
+            this@MainDesign.statusDetail = detail
+            renderStatus()
+        }
+    }
+
+    suspend fun setVirtualIp(ip: String?) {
+        withContext(Dispatchers.Main) {
+            virtualIp = ip
             renderStatus()
         }
     }
@@ -101,45 +132,81 @@ class MainDesign(context: Context) : Design<MainDesign.Request>(context) {
     }
 
     /**
-     * 状态卡渲染：chip 颜色/文案、大号数值、圆形按钮。
-     * 颜色全部取自 `ui_*` 令牌，深色模式下同样达标（见 docs/research/ui/tokens.md）。
+     * 状态卡渲染：chip 文案/配色、大号数值、圆形按钮。
+     * 五态颜色全部取自 `ui_status_*` 令牌，深色模式下同样达标
+     * （见 docs/research/ui/tokens.md）。
      */
     private fun renderStatus() {
         val chip = binding.statusChip
-        chip.setText(if (running) R.string.running else R.string.stopped)
-        chip.setTextColor(
-            context.resolveThemedColor(
-                if (running) R.attr.ui_status_connected else R.attr.ui_on_surface_variant
-            )
+        val idle = status == Status.Stopped
+
+        chip.setText(
+            when (status) {
+                Status.Stopped -> R.string.stopped
+                Status.Connecting -> R.string.connecting
+                Status.Connected -> R.string.running
+                Status.Degraded -> R.string.degraded
+                Status.Error -> R.string.status_error
+            }
         )
-        chip.backgroundTintList = ColorStateList.valueOf(
-            context.resolveThemedColor(
-                if (running) R.attr.ui_status_connected_container else R.attr.ui_surface_container_high
-            )
-        )
+        chip.setTextColor(context.resolveThemedColor(chipForegroundAttr()))
+        chip.backgroundTintList =
+            ColorStateList.valueOf(context.resolveThemedColor(chipContainerAttr()))
+
+        // 连接中：chip 轻微呼吸，让"正在做事"有反馈；其余状态保持静止
+        if (status == Status.Connecting) {
+            if (!pulse.isStarted) pulse.start()
+        } else if (pulse.isStarted) {
+            pulse.cancel()
+            chip.alpha = 1f
+        }
 
         // 大号数值始终展示累计转发流量；是否运行由 chip 表达，避免与 chip 文案重复
         binding.statusValue.text = forwardedText.ifEmpty { "0 B" }
 
-        binding.statusHint.text = if (running) {
-            modeText.ifEmpty { context.getString(R.string.rule_mode) }
-        } else {
-            context.getString(R.string.tap_to_start)
+        binding.statusHint.text = when (status) {
+            Status.Stopped -> context.getString(R.string.tap_to_start)
+            Status.Connecting -> statusDetail
+                ?: context.getString(R.string.establishing_tunnel)
+            Status.Connected -> listOfNotNull(virtualIp, modeText.ifEmpty {
+                context.getString(R.string.rule_mode)
+            }).joinToString(" · ")
+            Status.Degraded -> statusDetail ?: context.getString(R.string.degraded)
+            Status.Error -> statusDetail?.lineSequence()?.firstOrNull()?.take(48)
+                ?: context.getString(R.string.status_error)
         }
 
         binding.actionButton.backgroundTintList = ColorStateList.valueOf(
             context.resolveThemedColor(
-                if (running) R.attr.ui_primary else R.attr.ui_surface_container_high
+                if (idle || status == Status.Error) R.attr.ui_surface_container_high
+                else R.attr.ui_primary
             )
         )
         binding.actionIcon.setImageResource(
-            if (running) R.drawable.ic_stop_filled else R.drawable.ic_play_filled
+            if (idle || status == Status.Error) R.drawable.ic_play_filled
+            else R.drawable.ic_stop_filled
         )
         binding.actionIcon.imageTintList = ColorStateList.valueOf(
             context.resolveThemedColor(
-                if (running) R.attr.ui_on_primary else R.attr.ui_on_surface
+                if (idle || status == Status.Error) R.attr.ui_on_surface else R.attr.ui_on_primary
             )
         )
+    }
+
+    private fun chipForegroundAttr(): Int = when (status) {
+        Status.Stopped -> R.attr.ui_status_stopped
+        Status.Connecting -> R.attr.ui_status_connecting
+        Status.Connected -> R.attr.ui_status_connected
+        Status.Degraded -> R.attr.ui_status_degraded
+        Status.Error -> R.attr.ui_status_error
+    }
+
+    private fun chipContainerAttr(): Int = when (status) {
+        Status.Stopped -> R.attr.ui_surface_container_high
+        Status.Connecting -> R.attr.ui_status_connecting_container
+        Status.Connected -> R.attr.ui_status_connected_container
+        Status.Degraded -> R.attr.ui_status_degraded_container
+        Status.Error -> R.attr.ui_status_error_container
     }
 
     init {

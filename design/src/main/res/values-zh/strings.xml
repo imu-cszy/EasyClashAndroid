@@ -66,7 +66,12 @@
     <string name="route_system_traffic">自动路由系统流量</string>
     <string name="routing_via_vpn_service">通过 VpnService 自动路由所有系统流量</string>
     <string name="rule_mode">规则模式</string>
-    <string name="running">运行中</string>
+    <string name="running">已连接</string>
+    <string name="connecting">连接中</string>
+    <string name="degraded">不稳定</string>
+    <string name="status_error">异常</string>
+    <string name="establishing_tunnel">正在建立隧道</string>
+    <string name="peer_count">%1$d 个节点</string>
     <string name="settings">设置</string>
     <string name="show_traffic">显示流量</string>
     <string name="show_traffic_summary">在通知中自动刷新流量</string>
