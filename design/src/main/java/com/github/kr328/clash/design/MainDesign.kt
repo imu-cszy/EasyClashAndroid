@@ -1,12 +1,10 @@
 package com.github.kr328.clash.design
 
 import android.animation.ObjectAnimator
-import android.animation.ValueAnimator
 import android.content.Context
 import android.content.res.ColorStateList
 import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
-import android.view.animation.DecelerateInterpolator
 import androidx.appcompat.app.AlertDialog
 import com.github.kr328.clash.core.model.TunnelState
 import com.github.kr328.clash.core.util.trafficTotal
@@ -57,10 +55,13 @@ class MainDesign(context: Context) : Design<MainDesign.Request>(context) {
     private var status = Status.Stopped
     private var statusDetail: String? = null
     private var virtualIp: String? = null
-    /** 目标累计流量与当前显示值：数值变化时滚动过去，避免每秒硬跳 */
+    /**
+     * 累计转发流量（字节）。
+     *
+     * 这里刻意不做数值补间：每秒一次的真实增量之间再插值，会让每一位数字在几百毫秒内
+     * 反复重排，看起来是"乱跳"而不是"增长"。直接显示每秒的真实值即可。
+     */
     private var forwardedBytes = 0L
-    private var displayedBytes = 0L
-    private var valueAnimator: ValueAnimator? = null
     private var modeText = ""
 
     /** "连接中" 时 chip 的呼吸动画 */
@@ -100,35 +101,10 @@ class MainDesign(context: Context) : Design<MainDesign.Request>(context) {
 
     suspend fun setForwarded(value: Long) {
         withContext(Dispatchers.Main) {
-            animateForwardedTo(value)
-        }
-    }
+            if (value == forwardedBytes) return@withContext
 
-    private fun animateForwardedTo(target: Long) {
-        if (target == forwardedBytes) return
-
-        val start = displayedBytes
-        forwardedBytes = target
-
-        valueAnimator?.cancel()
-
-        if (target < start) {
-            // 服务重启后归零：直接跳，不做"倒着滚"
-            displayedBytes = target
+            forwardedBytes = value
             renderStatus()
-            return
-        }
-
-        valueAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 420
-            interpolator = DecelerateInterpolator()
-            addUpdateListener { animator ->
-                val fraction = animator.animatedValue as Float
-                displayedBytes = start + ((target - start) * fraction).toLong()
-                binding.statusValue.text =
-            if (displayedBytes == 0L) "0 B" else displayedBytes.trafficTotal()
-            }
-            start()
         }
     }
 
@@ -195,7 +171,7 @@ class MainDesign(context: Context) : Design<MainDesign.Request>(context) {
 
         // 大号数值始终展示累计转发流量；是否运行由 chip 表达，避免与 chip 文案重复
         binding.statusValue.text =
-            if (displayedBytes == 0L) "0 B" else displayedBytes.trafficTotal()
+            if (forwardedBytes == 0L) "0 B" else forwardedBytes.trafficTotal()
 
         binding.statusHint.text = when (status) {
             Status.Stopped -> context.getString(R.string.tap_to_start)
