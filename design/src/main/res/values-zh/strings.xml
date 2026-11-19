@@ -339,6 +339,10 @@
     <string name="bundle_imported">已导入</string>
     <string name="bundle_export_failed">导出失败</string>
     <string name="bundle_import_failed">导入失败：%1$s</string>
+    <string name="shortcut_state_on_short">已开启</string>
+    <string name="shortcut_state_off_short">已关闭</string>
+    <string name="shortcut_state_on_long">EasyClash 已开启 · 点击停止</string>
+    <string name="shortcut_state_off_long">EasyClash 已关闭 · 点击启动</string>
     <string name="shortcut_pin_title">桌面快捷方式</string>
     <string name="shortcut_pin_summary">一个图标，一键启动或停止</string>
     <string name="shortcut_pin_unsupported">当前桌面不支持添加快捷方式</string>

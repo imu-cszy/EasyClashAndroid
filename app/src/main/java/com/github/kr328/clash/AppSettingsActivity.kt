@@ -42,7 +42,7 @@ class AppSettingsActivity : BaseActivity<AppSettingsDesign>(), Behavior {
                                 it.recreate()
                             }
                         AppSettingsDesign.Request.CreateShortcut -> {
-                            val requested = Shortcuts.requestPinnedToggle(this@AppSettingsActivity)
+                            val requested = Shortcuts.requestPinnedToggle(this@AppSettingsActivity, clashRunning)
 
                             Toast.makeText(
                                 this@AppSettingsActivity,

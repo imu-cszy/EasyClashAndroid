@@ -430,6 +430,10 @@
     <string name="bundle_imported">Bundle imported</string>
     <string name="bundle_export_failed">Export failed</string>
     <string name="bundle_import_failed">Import failed: %1$s</string>
+    <string name="shortcut_state_on_short">On</string>
+    <string name="shortcut_state_off_short">Off</string>
+    <string name="shortcut_state_on_long">EasyClash is on - tap to stop</string>
+    <string name="shortcut_state_off_long">EasyClash is off - tap to start</string>
     <string name="shortcut_pin_title">Home screen shortcut</string>
     <string name="shortcut_pin_summary">One tap to start or stop</string>
     <string name="shortcut_pin_unsupported">This launcher does not support pinned shortcuts</string>
