@@ -345,6 +345,27 @@ class EasyTierRuntimeManager(
         diagnostics.log(Diagnostics.Category.SOCKS5, "lightsail", "normal=${describe(normal)} warp=${describe(warp)}")
         val okN = normal is LocalSocksHealthChecker.CheckResult.Ok
         val okW = warp is LocalSocksHealthChecker.CheckResult.Ok
+
+        // 出口可用时再取一次公网 IP：证明出口能发出真实应用层流量（比 CONNECT 更强）
+        if (okN) {
+            val ip = healthChecker.fetchEgressIp(
+                viaHost = "127.0.0.1", viaPort = config.socks5Port,
+                targetHost = config.lightsailHost, targetPort = config.normalPort,
+                username = config.normalUser.takeIf { it.isNotEmpty() },
+                password = config.normalPassword.takeIf { it.isNotEmpty() },
+            )
+            diagnostics.log(Diagnostics.Category.SOCKS5, "egress", "normal public IP=${ip ?: "unknown"}")
+        }
+        if (okW) {
+            val ip = healthChecker.fetchEgressIp(
+                viaHost = "127.0.0.1", viaPort = config.socks5Port,
+                targetHost = config.lightsailHost, targetPort = config.warpPort,
+                username = config.warpUser.takeIf { it.isNotEmpty() },
+                password = config.warpPassword.takeIf { it.isNotEmpty() },
+            )
+            diagnostics.log(Diagnostics.Category.SOCKS5, "egress", "warp public IP=${ip ?: "unknown"}")
+        }
+
         if (okN || okW) {
             transition(State.CONNECTED) {
                 it.copy(lightsailNormal = normal, lightsailWarp = warp, lastError = null)

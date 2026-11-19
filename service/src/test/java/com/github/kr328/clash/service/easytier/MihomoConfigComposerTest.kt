@@ -11,6 +11,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MihomoConfigComposerTest {
+    /** 单元测试中 android.os.Process 是 stub，注入固定 UID */
+    private val testUid = 10149
+    private fun compose(config: EasyTierConfig): String? =
+        MihomoConfigComposer.composeOrNull(config) { testUid }
+
     private fun validConfig() = EasyTierConfig(
         enabled = true,
         networkName = "net",
@@ -28,7 +33,7 @@ class MihomoConfigComposerTest {
 
     @Test
     fun `compose builds three proxies and one select group`() {
-        val composed = MihomoConfigComposer.composeOrNull(validConfig())
+        val composed = compose(validConfig())
         assertNotNull(composed)
         val json = Json.parseToJsonElement(composed!!).jsonObject
         val proxies = json["proxies"]!!.jsonArray
@@ -60,18 +65,23 @@ class MihomoConfigComposerTest {
         assertEquals("select", group["type"]!!.jsonPrimitive.content)
         val members = group["proxies"]!!.jsonArray.map { it.jsonPrimitive.content }
         assertEquals(listOf("AWS-NORMAL", "AWS-WARP"), members)
+
+        // 必须注入 UID,<本应用>,DIRECT，防止 EasyTier underlay 被 TUN 捕获成环
+        val rules = json["rules"]!!.jsonArray.map { it.jsonPrimitive.content }
+        assertEquals(1, rules.size)
+        assertEquals("UID,$testUid,DIRECT", rules[0])
     }
 
     @Test
     fun `compose returns null when disabled or invalid`() {
-        assertNull(MihomoConfigComposer.composeOrNull(validConfig().copy(enabled = false)))
-        assertNull(MihomoConfigComposer.composeOrNull(validConfig().copy(networkName = "")))
-        assertNull(MihomoConfigComposer.composeOrNull(validConfig().copy(peers = emptyList())))
+        assertNull(compose(validConfig().copy(enabled = false)))
+        assertNull(compose(validConfig().copy(networkName = "")))
+        assertNull(compose(validConfig().copy(peers = emptyList())))
     }
 
     @Test
     fun `et-local never appears in any group and dialer always et-local`() {
-        val obj = Json.parseToJsonElement(MihomoConfigComposer.composeOrNull(validConfig())!!).jsonObject
+        val obj = Json.parseToJsonElement(compose(validConfig())!!).jsonObject
         obj["proxy-groups"]!!.jsonArray.forEach { g ->
             val members = g.jsonObject["proxies"]!!.jsonArray.map { it.jsonPrimitive.content }
             assertTrue(MihomoConfigComposer.PROXY_ET_LOCAL !in members)
@@ -85,7 +95,7 @@ class MihomoConfigComposerTest {
     @Test
     fun `empty credentials are omitted`() {
         val obj = Json.parseToJsonElement(
-            MihomoConfigComposer.composeOrNull(validConfig().copy(normalUser = "", normalPassword = ""))!!
+            compose(validConfig().copy(normalUser = "", normalPassword = ""))!!
         ).jsonObject
         val normal = obj["proxies"]!!.jsonArray[1].jsonObject
         assertNull(normal["username"])

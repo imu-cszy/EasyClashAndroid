@@ -31,8 +31,13 @@ object MihomoConfigComposer {
 
     /**
      * 生成注入 JSON。enabled=false 或配置不完整时返回 null（调用方应清除注入）。
+     *
+     * @param selfUid 本应用 UID 提供者（单元测试可注入固定值；默认读 android.os.Process）
      */
-    fun composeOrNull(config: EasyTierConfig): String? {
+    fun composeOrNull(
+        config: EasyTierConfig,
+        selfUid: () -> Int = { android.os.Process.myUid() },
+    ): String? {
         if (!config.enabled) return null
         if (config.validate().isNotEmpty()) return null
 
@@ -67,10 +72,22 @@ object MihomoConfigComposer {
         }
 
         assertNoLoop(listOf(etLocal, awsNormal, awsWarp), group)
+
+        // 关键：把本应用自身流量置为 DIRECT（最高优先级规则）。
+        // EasyTier 的 underlay socket 由本进程创建、未 protect()，一旦 TUN 建立就会被捕获；
+        // 若用户把流量路由到 AWS-EXIT，这些 underlay 连接会再次进入 AWS-EXIT → 环路。
+        // UID 规则只在 Android 生效（mihomo rules/common/uid.go），且 CMFA 已把
+        // querySocketUid 接入 TUN，因此可精确命中本应用。
+        val selfUidValue = selfUid()
+        val rules = buildJsonArray {
+            add(JsonPrimitive("UID,$selfUidValue,DIRECT"))
+        }
+
         return JsonObject(
             mapOf(
                 "proxies" to JsonArray(listOf(etLocal, awsNormal, awsWarp)),
                 "proxy-groups" to JsonArray(listOf(group)),
+                "rules" to rules,
             )
         ).toString()
     }

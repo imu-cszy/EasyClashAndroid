@@ -163,6 +163,76 @@ class LocalSocksHealthChecker(
         }
     }
 
+    /**
+     * 经「本地 SOCKS5 → 隧道 → 远端 SOCKS5」建立连接后，用明文 HTTP 取回出口公网 IP。
+     *
+     * 这是比 CONNECT 探测更强的验收：证明出口真的能发出应用层流量。
+     * 失败返回 null（不影响状态机，只用于诊断）。
+     */
+    suspend fun fetchEgressIp(
+        viaHost: String,
+        viaPort: Int,
+        targetHost: String,
+        targetPort: Int,
+        username: String? = null,
+        password: String? = null,
+        probeHost: String = "ip-api.com",
+        probePort: Int = 80,
+        path: String = "/line/?fields=query",
+    ): String? = withContext(Dispatchers.IO) {
+        var socket: Socket? = null
+        try {
+            socket = Socket()
+            socket.connect(InetSocketAddress(viaHost, viaPort), connectTimeoutMs)
+            socket.soTimeout = readTimeoutMs
+            val input = socket.getInputStream()
+            val output = socket.getOutputStream()
+
+            val localMethod = greet(input, output, offerUserPass = username != null)
+            if (localMethod == METHOD_USER_PASS) {
+                require(username != null && password != null) { "local socks5 requires auth" }
+                authenticate(input, output, username, password)
+            }
+            connectRemote(input, output, targetHost, targetPort)
+
+            val remoteMethod = greet(input, output, offerUserPass = username != null)
+            if (remoteMethod == METHOD_USER_PASS) {
+                require(username != null && password != null) { "remote socks5 requires auth" }
+                authenticate(input, output, username, password)
+            }
+            connectRemote(input, output, probeHost, probePort)
+
+            val request = "GET $path HTTP/1.1\r\nHost: $probeHost\r\nConnection: close\r\nUser-Agent: EasyClash\r\n\r\n"
+            output.write(request.toByteArray(Charsets.US_ASCII))
+            output.flush()
+
+            val body = StringBuilder()
+            val buf = ByteArray(1024)
+            while (true) {
+                val n = try {
+                    input.read(buf)
+                } catch (e: java.net.SocketTimeoutException) {
+                    break
+                }
+                if (n <= 0) break
+                body.append(String(buf, 0, n, Charsets.UTF_8))
+                if (body.length > 4096) break
+            }
+            parseHttpBodyIp(body.toString())
+        } catch (e: Exception) {
+            null
+        } finally {
+            runCatching { socket?.close() }
+        }
+    }
+
+    /** 从 HTTP 响应里取 body，提取第一个像 IP 的 token */
+    private fun parseHttpBodyIp(raw: String): String? {
+        val body = raw.substringAfter("\r\n\r\n", raw)
+        return Regex("""\b(\d{1,3}(?:\.\d{1,3}){3})\b""").find(body)?.groupValues?.get(1)
+            ?: body.lineSequence().firstOrNull { it.isNotBlank() }?.trim()?.takeIf { it.length in 3..64 }
+    }
+
     /** 返回服务器选定的认证方法字节（0x00 无认证 / 0x02 用户密码） */
     @Throws(IOException::class)
     private fun greet(input: InputStream, output: OutputStream, offerUserPass: Boolean = false): Byte {

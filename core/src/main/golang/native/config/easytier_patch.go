@@ -38,8 +38,10 @@ func getEasyTierInjection() string {
 }
 
 type easyTierInjectionPayload struct {
-	Proxies    []map[string]any `json:"proxies"`
+	Proxies     []map[string]any `json:"proxies"`
 	ProxyGroups []map[string]any `json:"proxy-groups"`
+	// 需要前置的规则（如 UID,<本应用>,DIRECT，防止 EasyTier underlay 被 TUN 捕获成环）
+	Rules []string `json:"rules"`
 }
 
 func patchEasyTier(cfg *config.RawConfig, _ string) error {
@@ -76,7 +78,26 @@ func patchEasyTier(cfg *config.RawConfig, _ string) error {
 	cfg.Proxy = append(cfg.Proxy, payload.Proxies...)
 	cfg.ProxyGroup = append(cfg.ProxyGroup, payload.ProxyGroups...)
 
-	log.Infoln("EasyClash: injected %d easytier proxies and %d groups", len(payload.Proxies), len(payload.ProxyGroups))
+	// 注入规则前置于用户规则，保证最高优先级；同时去重，避免重复加载时叠加
+	if len(payload.Rules) > 0 {
+		keep := make([]string, 0, len(cfg.Rule))
+		for _, r := range cfg.Rule {
+			injected := false
+			for _, ir := range payload.Rules {
+				if r == ir {
+					injected = true
+					break
+				}
+			}
+			if !injected {
+				keep = append(keep, r)
+			}
+		}
+		cfg.Rule = append(append([]string{}, payload.Rules...), keep...)
+	}
+
+	log.Infoln("EasyClash: injected %d easytier proxies, %d groups, %d rules",
+		len(payload.Proxies), len(payload.ProxyGroups), len(payload.Rules))
 	return nil
 }
 
