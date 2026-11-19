@@ -23,6 +23,12 @@ import java.net.Socket
 class LocalSocksHealthChecker(
     private val connectTimeoutMs: Int = 3000,
     private val readTimeoutMs: Int = 5000,
+    /**
+     * 经隧道访问远端时的读超时。隧道首连（TCP over EasyTier + Lightsail 建连）明显慢于
+     * 本地探测，5s 会把正常但偏慢的出口误判为失败（2026-11-19 真机：normal 首次 5s 超时，
+     * warp 1.4s 成功）。
+     */
+    private val remoteReadTimeoutMs: Int = 8000,
 ) {
     enum class Stage {
         TCP_CONNECT, GREETING, AUTH, CONNECT_REMOTE,
@@ -79,7 +85,7 @@ class LocalSocksHealthChecker(
         try {
             socket = Socket()
             socket.connect(InetSocketAddress(viaHost, viaPort), connectTimeoutMs)
-            socket.soTimeout = readTimeoutMs
+            socket.soTimeout = remoteReadTimeoutMs
             val input = socket.getInputStream()
             val output = socket.getOutputStream()
 
@@ -125,7 +131,7 @@ class LocalSocksHealthChecker(
         try {
             socket = Socket()
             socket.connect(InetSocketAddress(viaHost, viaPort), connectTimeoutMs)
-            socket.soTimeout = readTimeoutMs
+            socket.soTimeout = remoteReadTimeoutMs
             val input = socket.getInputStream()
             val output = socket.getOutputStream()
 
@@ -184,7 +190,7 @@ class LocalSocksHealthChecker(
         try {
             socket = Socket()
             socket.connect(InetSocketAddress(viaHost, viaPort), connectTimeoutMs)
-            socket.soTimeout = readTimeoutMs
+            socket.soTimeout = remoteReadTimeoutMs
             val input = socket.getInputStream()
             val output = socket.getOutputStream()
 

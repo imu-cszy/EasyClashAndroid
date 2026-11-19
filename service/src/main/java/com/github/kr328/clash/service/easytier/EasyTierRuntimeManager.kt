@@ -421,7 +421,7 @@ class EasyTierRuntimeManager(
 
     private fun describe(r: LocalSocksHealthChecker.CheckResult): String = when (r) {
         is LocalSocksHealthChecker.CheckResult.Ok -> "ok(${r.elapsedMs}ms)"
-        is LocalSocksHealthChecker.CheckResult.Failed -> "failed@${r.stage}:${r.detail}"
+        is LocalSocksHealthChecker.CheckResult.Failed -> "failed@${r.stage}(${r.elapsedMs}ms):${r.detail}"
     }
 
     private fun transition(state: State, transform: (Status) -> Status = { it }) {
