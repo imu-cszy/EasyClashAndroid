@@ -91,7 +91,8 @@ class BottomNavBar @JvmOverloads constructor(
             return
         }
 
-        setSelected(destination, animate = true)
+        // 不做“乐观选中”：每个 tab 是独立 Activity，若在这里改本页选中态，
+        // 返回本页时高亮会停留在别人身上。目标 Activity 创建时会绑定正确的 tab。
         onSelect?.invoke(destination)
     }
 
