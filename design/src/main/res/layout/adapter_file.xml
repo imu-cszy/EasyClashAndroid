@@ -99,7 +99,7 @@
                 android:layout_width="@dimen/item_tailing_component_size"
                 android:layout_height="@dimen/item_tailing_component_size"
                 android:layout_margin="@dimen/item_tailing_margin"
-                android:background="@drawable/ic_baseline_more_vert" />
+                android:background="@drawable/ic_outline_more_vert" />
         </FrameLayout>
     </RelativeLayout>
 </layout>

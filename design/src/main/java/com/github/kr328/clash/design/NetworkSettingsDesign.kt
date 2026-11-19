@@ -43,7 +43,7 @@ class NetworkSettingsDesign(
 
             val vpn = switch(
                 value = uiStore::enableVpn,
-                icon = R.drawable.ic_baseline_vpn_lock,
+                icon = R.drawable.ic_outline_vpn_lock,
                 title = R.string.route_system_traffic,
                 summary = R.string.routing_via_vpn_service
             ) {

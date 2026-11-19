@@ -132,7 +132,7 @@ class EasyTierSettingsDesign(
 
             switch(
                 value = ref_enabled,
-                icon = R.drawable.ic_baseline_vpn_lock,
+                icon = R.drawable.ic_outline_vpn_lock,
                 title = R.string.et_enable,
                 summary = R.string.et_enable_summary,
             ) {
@@ -145,14 +145,14 @@ class EasyTierSettingsDesign(
                 value = ref_networkName,
                 adapter = NullableTextAdapter.String,
                 title = R.string.et_network_name,
-                icon = R.drawable.ic_baseline_dns,
+                icon = R.drawable.ic_outline_dns,
             )
 
             editableText(
                 value = ref_networkSecret,
                 adapter = secretAdapter,
                 title = R.string.et_network_secret,
-                icon = R.drawable.ic_baseline_key,
+                icon = R.drawable.ic_outline_key,
             )
 
             editableText(
@@ -171,7 +171,7 @@ class EasyTierSettingsDesign(
                 value = ref_peers,
                 adapter = TextAdapter.String,
                 title = R.string.et_peers,
-                icon = R.drawable.ic_baseline_publish,
+                icon = R.drawable.ic_outline_publish,
             )
 
             editableText(
@@ -186,7 +186,7 @@ class EasyTierSettingsDesign(
                 value = ref_lightsailHost,
                 adapter = NullableTextAdapter.String,
                 title = R.string.et_lightsail_host,
-                icon = R.drawable.ic_baseline_domain,
+                icon = R.drawable.ic_outline_domain,
             )
 
             editableText(
@@ -211,7 +211,7 @@ class EasyTierSettingsDesign(
                 value = ref_normalPassword,
                 adapter = secretAdapter,
                 title = R.string.et_normal_password,
-                icon = R.drawable.ic_baseline_key,
+                icon = R.drawable.ic_outline_key,
             )
 
             editableText(
@@ -224,7 +224,7 @@ class EasyTierSettingsDesign(
                 value = ref_warpPassword,
                 adapter = secretAdapter,
                 title = R.string.et_warp_password,
-                icon = R.drawable.ic_baseline_key,
+                icon = R.drawable.ic_outline_key,
             )
 
             category(R.string.et_category_diagnostics)

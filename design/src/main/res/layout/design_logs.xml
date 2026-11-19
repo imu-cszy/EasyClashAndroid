@@ -52,7 +52,7 @@
                         android:focusable="true"
                         android:onClick="@{() -> self.requests.offer(Request.DeleteAll.INSTANCE)}"
                         android:padding="@dimen/toolbar_image_action_padding"
-                        android:src="@drawable/ic_baseline_clear_all" />
+                        android:src="@drawable/ic_outline_clear_all" />
                 </RelativeLayout>
             </com.github.kr328.clash.design.view.ActivityBarLayout>
 

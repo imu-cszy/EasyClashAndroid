@@ -82,7 +82,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginVertical="@dimen/properties_element_margin_vertical"
                     android:onClick="@{() -> self.inputAgeSecretKey()}"
-                    app:icon="@drawable/ic_baseline_key"
+                    app:icon="@drawable/ic_outline_key"
                     app:placeholder="@string/age_secret_key_hint"
                     app:text="@{profile.ageSecretKey}"
                     app:title="@string/age_secret_key" />
@@ -152,7 +152,7 @@
                         android:focusable="true"
                         android:onClick="@{() -> self.requestCommit()}"
                         android:padding="@dimen/toolbar_image_action_padding"
-                        android:src="@drawable/ic_baseline_save"
+                        android:src="@drawable/ic_outline_save"
                         android:visibility="@{processing ? View.GONE : View.VISIBLE}" />
                 </FrameLayout>
             </RelativeLayout>

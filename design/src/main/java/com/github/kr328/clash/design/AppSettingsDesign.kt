@@ -43,7 +43,7 @@ class AppSettingsDesign(
 
             switch(
                 value = behavior::autoRestart,
-                icon = R.drawable.ic_baseline_restore,
+                icon = R.drawable.ic_outline_restore,
                 title = R.string.auto_restart,
                 summary = R.string.allow_clash_auto_restart,
             )
@@ -58,7 +58,7 @@ class AppSettingsDesign(
                     R.string.always_light,
                     R.string.always_dark
                 ),
-                icon = R.drawable.ic_baseline_brightness_4,
+                icon = R.drawable.ic_outline_brightness_4,
                 title = R.string.dark_mode
             ) {
                 listener = OnChangedListener {
@@ -92,7 +92,7 @@ class AppSettingsDesign(
 
             switch(
                 value = srvStore::dynamicNotification,
-                icon = R.drawable.ic_baseline_domain,
+                icon = R.drawable.ic_outline_domain,
                 title = R.string.show_traffic,
                 summary = R.string.show_traffic_summary
             ) {

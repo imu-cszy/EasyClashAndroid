@@ -71,7 +71,7 @@
                             android:focusable="true"
                             android:onClick="@{() -> self.requestUrlTesting()}"
                             android:padding="@dimen/toolbar_image_action_padding"
-                            android:src="@drawable/ic_baseline_flash_on" />
+                            android:src="@drawable/ic_outline_flash_on" />
 
                         <ProgressBar
                             android:id="@+id/url_test_progress_view"
@@ -92,7 +92,7 @@
                         android:contentDescription="@string/more"
                         android:focusable="true"
                         android:padding="@dimen/toolbar_image_action_padding"
-                        android:src="@drawable/ic_baseline_more_vert" />
+                        android:src="@drawable/ic_outline_more_vert" />
 
                 </RelativeLayout>
             </com.github.kr328.clash.design.view.ActivityBarLayout>
@@ -128,7 +128,7 @@
                 android:layout_margin="@dimen/item_tailing_margin"
                 android:contentDescription="@string/delay_test"
                 android:onClick="@{() -> self.requestUrlTesting()}"
-                android:src="@drawable/ic_baseline_flash_on" />
+                android:src="@drawable/ic_outline_flash_on" />
         </FrameLayout>
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 </layout>

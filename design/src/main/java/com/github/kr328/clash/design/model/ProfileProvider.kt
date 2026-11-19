@@ -13,7 +13,7 @@ sealed class ProfileProvider {
         override val summary: String
             get() = context.getString(R.string.import_from_file)
         override val icon: Drawable?
-            get() = context.getDrawableCompat(R.drawable.ic_baseline_attach_file)
+            get() = context.getDrawableCompat(R.drawable.ic_outline_attach_file)
 
 
     }
@@ -24,7 +24,7 @@ sealed class ProfileProvider {
         override val summary: String
             get() = context.getString(R.string.import_from_url)
         override val icon: Drawable?
-            get() = context.getDrawableCompat(R.drawable.ic_baseline_cloud_download)
+            get() = context.getDrawableCompat(R.drawable.ic_outline_cloud_download)
     }
 
     class QR(private val context: Context) : ProfileProvider() {

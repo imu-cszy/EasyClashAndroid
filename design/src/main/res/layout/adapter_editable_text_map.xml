@@ -35,6 +35,6 @@
             android:contentDescription="@string/delete"
             android:focusable="true"
             android:padding="@dimen/toolbar_image_action_padding"
-            android:src="@drawable/ic_baseline_close" />
+            android:src="@drawable/ic_outline_close" />
     </RelativeLayout>
 </layout>

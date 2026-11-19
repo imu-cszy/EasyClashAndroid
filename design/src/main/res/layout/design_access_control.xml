@@ -49,7 +49,7 @@
                     android:contentDescription="@string/search"
                     android:focusable="true"
                     android:padding="@dimen/toolbar_image_action_padding"
-                    android:src="@drawable/ic_baseline_search" />
+                    android:src="@drawable/ic_outline_search" />
 
                 <ImageView
                     android:id="@+id/menu_view"
@@ -63,7 +63,7 @@
                     android:contentDescription="@string/more"
                     android:focusable="true"
                     android:padding="@dimen/toolbar_image_action_padding"
-                    android:src="@drawable/ic_baseline_more_vert" />
+                    android:src="@drawable/ic_outline_more_vert" />
             </RelativeLayout>
         </com.github.kr328.clash.design.view.ActivityBarLayout>
     </androidx.coordinatorlayout.widget.CoordinatorLayout>

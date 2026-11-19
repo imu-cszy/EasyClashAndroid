@@ -125,7 +125,7 @@
                 android:nextFocusLeft="@id/root_view"
                 android:onClick="@{menu}"
                 android:padding="12dp"
-                android:src="@drawable/ic_baseline_more_vert"
+                android:src="@drawable/ic_outline_more_vert"
                 app:tint="?attr/ui_on_surface_variant" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>

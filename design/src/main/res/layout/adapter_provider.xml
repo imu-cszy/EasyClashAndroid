@@ -85,7 +85,7 @@
                 android:layout_gravity="center"
                 android:layout_margin="@dimen/item_tailing_margin"
                 android:contentDescription="@string/more"
-                android:src="@drawable/ic_baseline_swap_vert"
+                android:src="@drawable/ic_outline_swap_vert"
                 android:visibility="@{state.updating ? View.GONE : View.VISIBLE}" />
 
             <ProgressBar

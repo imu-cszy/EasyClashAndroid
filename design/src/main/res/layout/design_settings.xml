@@ -33,21 +33,21 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:onClick="@{() -> self.request(Request.StartApp)}"
-                    app:icon="@drawable/ic_baseline_settings"
+                    app:icon="@drawable/ic_outline_settings"
                     app:text="@string/app" />
 
                 <com.github.kr328.clash.design.view.ActionLabel
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:onClick="@{() -> self.request(Request.StartNetwork)}"
-                    app:icon="@drawable/ic_baseline_dns"
+                    app:icon="@drawable/ic_outline_dns"
                     app:text="@string/network" />
 
                 <com.github.kr328.clash.design.view.ActionLabel
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:onClick="@{() -> self.request(Request.StartOverride)}"
-                    app:icon="@drawable/ic_baseline_extension"
+                    app:icon="@drawable/ic_outline_extension"
                     app:text="@string/override" />
 
                 <com.github.kr328.clash.design.view.ActionLabel
@@ -61,7 +61,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:onClick="@{() -> self.request(Request.StartEasyTier)}"
-                    app:icon="@drawable/ic_baseline_vpn_lock"
+                    app:icon="@drawable/ic_outline_vpn_lock"
                     app:text="@string/et_entry" />
 
             </LinearLayout>

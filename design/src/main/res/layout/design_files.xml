@@ -59,7 +59,7 @@
                     android:focusable="true"
                     android:onClick="@{() -> self.requestNew()}"
                     android:padding="@dimen/toolbar_image_action_padding"
-                    android:src="@drawable/ic_baseline_add"
+                    android:src="@drawable/ic_outline_add"
                     android:visibility="@{currentInBaseDir ? View.GONE : View.VISIBLE}" />
 
             </RelativeLayout>

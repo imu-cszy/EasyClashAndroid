@@ -32,7 +32,7 @@
                 android:contentDescription="@string/close"
                 android:focusable="true"
                 android:padding="@dimen/toolbar_image_action_padding"
-                android:src="@drawable/ic_baseline_close" />
+                android:src="@drawable/ic_outline_close" />
 
             <androidx.appcompat.widget.AppCompatEditText
                 android:id="@+id/keyword_view"

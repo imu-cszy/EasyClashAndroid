@@ -16,7 +16,7 @@
         android:contentDescription="@string/close"
         android:focusable="true"
         android:paddingHorizontal="@dimen/toolbar_image_action_padding"
-        android:src="@drawable/ic_baseline_arrow_back" />
+        android:src="@drawable/ic_outline_arrow_back" />
 
     <TextView
         android:id="@+id/activity_bar_title_view"

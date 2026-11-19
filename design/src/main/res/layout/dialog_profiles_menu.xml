@@ -27,7 +27,7 @@
             android:onClick="@{() -> master.requestUpdate(self, profile)}"
             android:padding="@dimen/bottom_sheet_menu_items_padding"
             android:visibility="@{profile.imported &amp;&amp; profile.type != Type.File ? View.VISIBLE : View.GONE}"
-            app:icon="@drawable/ic_baseline_update"
+            app:icon="@drawable/ic_outline_update"
             app:text="@string/update" />
 
         <com.github.kr328.clash.design.view.LargeActionLabel
@@ -35,7 +35,7 @@
             android:layout_height="wrap_content"
             android:onClick="@{() -> master.requestEdit(self, profile)}"
             android:padding="@dimen/bottom_sheet_menu_items_padding"
-            app:icon="@drawable/ic_baseline_edit"
+            app:icon="@drawable/ic_outline_edit"
             app:text="@string/edit" />
 
         <com.github.kr328.clash.design.view.LargeActionLabel
@@ -44,7 +44,7 @@
             android:onClick="@{() -> master.requestEditConfig(self, profile)}"
             android:padding="@dimen/bottom_sheet_menu_items_padding"
             android:visibility="@{profile.imported ? View.VISIBLE : View.GONE}"
-            app:icon="@drawable/ic_baseline_save"
+            app:icon="@drawable/ic_outline_save"
             app:text="@string/edit_config" />
 
         <com.github.kr328.clash.design.view.LargeActionLabel
@@ -53,7 +53,7 @@
             android:onClick="@{() -> master.requestDuplicate(self, profile)}"
             android:padding="@dimen/bottom_sheet_menu_items_padding"
             android:visibility="@{profile.imported ? View.VISIBLE : View.GONE}"
-            app:icon="@drawable/ic_baseline_content_copy"
+            app:icon="@drawable/ic_outline_content_copy"
             app:text="@string/duplicate" />
 
         <com.github.kr328.clash.design.view.LargeActionLabel
@@ -71,7 +71,7 @@
             android:onClick="@{() -> master.requestExportBundle(self, profile)}"
             android:padding="@dimen/bottom_sheet_menu_items_padding"
             android:visibility="@{profile.imported ? View.VISIBLE : View.GONE}"
-            app:icon="@drawable/ic_baseline_publish"
+            app:icon="@drawable/ic_outline_publish"
             app:text="@string/bundle_export" />
 
         <com.github.kr328.clash.design.view.LargeActionLabel

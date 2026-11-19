@@ -42,7 +42,7 @@
                 android:contentDescription="@string/_new"
                 android:focusable="true"
                 android:padding="@dimen/toolbar_image_action_padding"
-                android:src="@drawable/ic_baseline_add" />
+                android:src="@drawable/ic_outline_add" />
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/main_list"

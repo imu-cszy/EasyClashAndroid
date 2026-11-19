@@ -74,7 +74,7 @@
                         android:focusable="true"
                         android:onClick="@{() -> self.request(Request.OpenSettings)}"
                         android:padding="12dp"
-                        android:src="@drawable/ic_baseline_settings"
+                        android:src="@drawable/ic_outline_settings"
                         app:tint="?attr/ui_on_surface" />
                 </LinearLayout>
 
@@ -353,7 +353,7 @@
                                 android:layout_width="20dp"
                                 android:layout_height="20dp"
                                 android:contentDescription="@string/providers"
-                                android:src="@drawable/ic_baseline_swap_vertical_circle"
+                                android:src="@drawable/ic_outline_swap_vertical_circle"
                                 app:tint="?attr/ui_on_surface" />
 
                             <TextView
@@ -395,7 +395,7 @@
                                 android:layout_width="20dp"
                                 android:layout_height="20dp"
                                 android:contentDescription="@string/logs"
-                                android:src="@drawable/ic_baseline_assignment"
+                                android:src="@drawable/ic_outline_assignment"
                                 app:tint="?attr/ui_on_surface" />
 
                             <TextView
@@ -436,7 +436,7 @@
                                 android:layout_width="20dp"
                                 android:layout_height="20dp"
                                 android:contentDescription="@string/settings"
-                                android:src="@drawable/ic_baseline_settings"
+                                android:src="@drawable/ic_outline_settings"
                                 app:tint="?attr/ui_on_surface" />
 
                             <TextView
@@ -477,7 +477,7 @@
                                 android:layout_width="20dp"
                                 android:layout_height="20dp"
                                 android:contentDescription="@string/help"
-                                android:src="@drawable/ic_baseline_help_center"
+                                android:src="@drawable/ic_outline_help_center"
                                 app:tint="?attr/ui_on_surface" />
 
                             <TextView
@@ -518,7 +518,7 @@
                                 android:layout_width="20dp"
                                 android:layout_height="20dp"
                                 android:contentDescription="@string/about"
-                                android:src="@drawable/ic_baseline_info"
+                                android:src="@drawable/ic_outline_info"
                                 app:tint="?attr/ui_on_surface" />
 
                             <TextView
