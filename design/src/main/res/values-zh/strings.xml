@@ -344,4 +344,9 @@
     <string name="app_display_name">EasyClash</string>
     <string name="status">状态</string>
     <string name="tools">工具</string>
+
+    <!-- EasyClash: 空态 -->
+    <string name="empty_profiles_title">还没有配置</string>
+    <string name="empty_profiles_desc">新建一个配置，或导入配置包</string>
+    <string name="empty_profiles_action">新建配置</string>
 </resources>

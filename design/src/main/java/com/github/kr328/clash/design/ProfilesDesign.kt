@@ -76,6 +76,10 @@ class ProfilesDesign(context: Context) : Design<ProfilesDesign.Request>(context)
 
         withContext(Dispatchers.Main) {
             binding.updateView.visibility = if (updatable) View.VISIBLE else View.GONE
+            // 空态：列表为空时展示引导页（新建 / 导入）
+            val empty = profiles.isEmpty()
+            binding.emptyView.visibility = if (empty) View.VISIBLE else View.GONE
+            binding.mainList.root.visibility = if (empty) View.GONE else View.VISIBLE
         }
     }
 

@@ -435,4 +435,9 @@
     <string name="app_display_name">EasyClash</string>
     <string name="status">Status</string>
     <string name="tools">Tools</string>
+
+    <!-- EasyClash: empty state -->
+    <string name="empty_profiles_title">No profiles yet</string>
+    <string name="empty_profiles_desc">Create a profile, or import a config bundle</string>
+    <string name="empty_profiles_action">New profile</string>
 </resources>
