@@ -33,8 +33,11 @@ class ProfilesDesign(context: Context) : Design<ProfilesDesign.Request>(context)
         data class Active(val profile: Profile) : Request()
         data class Update(val profile: Profile) : Request()
         data class Edit(val profile: Profile) : Request()
+        data class EditConfig(val profile: Profile) : Request()
         data class Duplicate(val profile: Profile) : Request()
         data class ShareQrCode(val profile: Profile) : Request()
+        data class ExportBundle(val profile: Profile) : Request()
+        object ImportBundle : Request()
         data class Delete(val profile: Profile) : Request()
     }
 
@@ -134,6 +137,12 @@ class ProfilesDesign(context: Context) : Design<ProfilesDesign.Request>(context)
         dialog.dismiss()
     }
 
+    fun requestEditConfig(dialog: Dialog, profile: Profile) {
+        requests.trySend(Request.EditConfig(profile))
+
+        dialog.dismiss()
+    }
+
     fun requestDuplicate(dialog: Dialog, profile: Profile) {
         requests.trySend(Request.Duplicate(profile))
 
@@ -150,6 +159,16 @@ class ProfilesDesign(context: Context) : Design<ProfilesDesign.Request>(context)
         requests.trySend(Request.ShareQrCode(profile))
 
         dialog.dismiss()
+    }
+
+    fun requestExportBundle(dialog: Dialog, profile: Profile) {
+        requests.trySend(Request.ExportBundle(profile))
+
+        dialog.dismiss()
+    }
+
+    fun requestImportBundle() {
+        requests.trySend(Request.ImportBundle)
     }
 
     suspend fun showProfileQrCode(profile: Profile) {

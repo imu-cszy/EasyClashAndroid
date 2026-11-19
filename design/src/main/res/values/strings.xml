@@ -399,4 +399,30 @@
     <string name="et_restart_required">Restart the VPN service to apply</string>
     <string name="et_diag_requesting">Requesting diagnostics…</string>
     <string name="et_diag_copied">Copied</string>
+
+    <!-- EasyClash: config editor -->
+    <string name="edit_config">Edit config file</string>
+    <string name="et_editor_title">Edit config</string>
+    <string name="et_editor_save">Save</string>
+    <string name="et_editor_validate">Validate</string>
+    <string name="et_editor_validating">Validating…</string>
+    <string name="et_editor_valid_ok">Config is valid</string>
+    <string name="et_editor_saving">Saving…</string>
+    <string name="et_editor_saved_ok">Saved</string>
+    <string name="et_editor_too_large">File is too large to edit here (over 2 MB). Use an external editor.</string>
+
+    <!-- EasyClash: config bundle -->
+    <string name="bundle_export">Export bundle</string>
+    <string name="bundle_import">Import bundle</string>
+    <string name="bundle_export_hint">Includes this profile (config + providers) and all EasyTier settings.</string>
+    <string name="bundle_use_password">Protect with a password</string>
+    <string name="bundle_password">Password</string>
+    <string name="bundle_password_confirm">Confirm password</string>
+    <string name="bundle_password_too_short">At least 6 characters</string>
+    <string name="bundle_password_mismatch">Passwords do not match</string>
+    <string name="bundle_import_password_title">Password for this bundle</string>
+    <string name="bundle_exported">Bundle exported</string>
+    <string name="bundle_imported">Bundle imported</string>
+    <string name="bundle_export_failed">Export failed</string>
+    <string name="bundle_import_failed">Import failed: %1$s</string>
 </resources>

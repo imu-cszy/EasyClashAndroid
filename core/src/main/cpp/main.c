@@ -383,6 +383,24 @@ Java_com_github_kr328_clash_core_bridge_Bridge_nativeSetEasyTierProxies(JNIEnv *
     setEasyTierProxies(_content);
 }
 
+// EasyClash: 校验 profile 目录（读取 + processor + 语义解析），不应用配置。
+// 返回错误文本；成功返回 null。
+JNIEXPORT jstring JNICALL
+Java_com_github_kr328_clash_core_bridge_Bridge_nativeValidateProfile(JNIEnv *env, jobject thiz,
+                                                                     jstring profile_dir) {
+    TRACE_METHOD();
+
+    scoped_string _profile_dir = get_string(profile_dir);
+
+    scoped_string error = validateProfile(_profile_dir);
+
+    if (error == NULL) {
+        return NULL;
+    }
+
+    return new_string(error);
+}
+
 JNIEXPORT jstring JNICALL
 Java_com_github_kr328_clash_core_bridge_Bridge_nativeQueryConfiguration(JNIEnv *env, jobject thiz) {
     TRACE_METHOD();

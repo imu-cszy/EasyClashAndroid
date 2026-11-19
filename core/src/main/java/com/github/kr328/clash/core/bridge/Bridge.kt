@@ -50,6 +50,9 @@ object Bridge {
     // EasyClash: EasyTier 代理链注入（session 级，合并式 patch；传空串清除）
     external fun nativeSetEasyTierProxies(content: String)
 
+    /** EasyClash: 校验 profile 目录（不应用），返回错误文本或 null */
+    external fun nativeValidateProfile(profileDir: String): String?
+
     external fun nativeQueryConfiguration(): String
     external fun nativeSubscribeLogcat(callback: LogcatInterface)
     external fun nativeCoreVersion(): String

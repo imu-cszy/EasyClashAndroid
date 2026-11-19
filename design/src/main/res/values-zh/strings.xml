@@ -308,4 +308,30 @@
     <string name="et_restart_required">重启 VPN 服务后生效</string>
     <string name="et_diag_requesting">正在获取诊断…</string>
     <string name="et_diag_copied">已复制</string>
+
+    <!-- EasyClash: 配置编辑器 -->
+    <string name="edit_config">编辑配置文件</string>
+    <string name="et_editor_title">编辑配置</string>
+    <string name="et_editor_save">保存</string>
+    <string name="et_editor_validate">校验</string>
+    <string name="et_editor_validating">正在校验…</string>
+    <string name="et_editor_valid_ok">配置有效</string>
+    <string name="et_editor_saving">正在保存…</string>
+    <string name="et_editor_saved_ok">已保存</string>
+    <string name="et_editor_too_large">文件过大（超过 2MB），请用外部编辑器修改</string>
+
+    <!-- EasyClash: 配置包 -->
+    <string name="bundle_export">导出配置包</string>
+    <string name="bundle_import">导入配置包</string>
+    <string name="bundle_export_hint">包含当前配置（config + providers）以及全部 EasyTier 设置。</string>
+    <string name="bundle_use_password">使用密码保护</string>
+    <string name="bundle_password">密码</string>
+    <string name="bundle_password_confirm">确认密码</string>
+    <string name="bundle_password_too_short">至少 6 位</string>
+    <string name="bundle_password_mismatch">两次输入不一致</string>
+    <string name="bundle_import_password_title">请输入配置包密码</string>
+    <string name="bundle_exported">已导出</string>
+    <string name="bundle_imported">已导入</string>
+    <string name="bundle_export_failed">导出失败</string>
+    <string name="bundle_import_failed">导入失败：%1$s</string>
 </resources>

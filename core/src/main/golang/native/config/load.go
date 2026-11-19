@@ -58,6 +58,20 @@ func Parse(rawConfig *config.RawConfig) (*config.Config, error) {
 	return cfg, nil
 }
 
+// ValidateProfileDir 只做校验、不应用配置：读取 + processor + 语义解析。
+// 可覆盖 YAML 语法错误、proxy/group 重名、规则引用不存在的目标等常见编辑错误。
+// 不调用 hub.ApplyConfig，因此不会影响正在运行的内核。
+func ValidateProfileDir(profilePath string) error {
+	rawCfg, err := UnmarshalAndPatch(profilePath)
+	if err != nil {
+		return err
+	}
+
+	_, err = Parse(rawCfg)
+
+	return err
+}
+
 func Load(path string) error {
 	rawCfg, err := UnmarshalAndPatch(path)
 	if err != nil {
@@ -65,7 +79,6 @@ func Load(path string) error {
 
 		return err
 	}
-
 	logDns(rawCfg)
 
 	cfg, err := Parse(rawCfg)

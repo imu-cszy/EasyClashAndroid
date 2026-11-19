@@ -215,6 +215,13 @@ object Clash {
         Bridge.nativeSetEasyTierProxies(json ?: "")
     }
 
+    /**
+     * EasyClash: 校验 profile 目录（含 config.yaml 与 providers），**不应用**配置。
+     * 必须在工作线程调用。返回错误文本；校验通过返回 null。
+     */
+    fun validateProfile(profileDir: java.io.File): String? =
+        Bridge.nativeValidateProfile(profileDir.absolutePath)
+
     fun clearOverride(slot: OverrideSlot) {
         Bridge.nativeClearOverride(slot.ordinal)
     }

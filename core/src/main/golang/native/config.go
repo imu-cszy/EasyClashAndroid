@@ -71,6 +71,15 @@ func setEasyTierProxies(content C.c_string) {
 	config.SetEasyTierProxies(C.GoString(content))
 }
 
+//export validateProfile
+func validateProfile(profilePath C.c_string) *C.char {
+	if err := config.ValidateProfileDir(C.GoString(profilePath)); err != nil {
+		return C.CString(err.Error())
+	}
+
+	return nil
+}
+
 //export setAgeSecretKey
 func setAgeSecretKey(key C.c_string) {
 	if key == nil {

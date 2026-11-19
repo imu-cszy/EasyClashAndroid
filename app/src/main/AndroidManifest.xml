@@ -178,6 +178,12 @@
             android:exported="false"
             android:label="@string/et_settings_title" />
         <activity
+            android:name=".ConfigEditorActivity"
+            android:configChanges="uiMode"
+            android:exported="false"
+            android:label="@string/et_editor_title"
+            android:windowSoftInputMode="adjustResize" />
+        <activity
             android:name=".AccessControlActivity"
             android:configChanges="uiMode"
             android:exported="false"
