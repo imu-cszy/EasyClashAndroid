@@ -24,6 +24,7 @@ import ipaddress
 import os
 import secrets
 import socket
+import subprocess
 import sys
 import threading
 
@@ -46,14 +47,62 @@ def _plausible_lan(ip: str) -> bool:
     return True
 
 
-def lan_ip() -> str:
-    """取本机在局域网里的地址（不会真的发包）"""
-    candidates = []
+def _windows_candidates() -> list:
+    """Windows：只取"带默认网关"的网卡，并让无线排在有线前面。
+
+    单纯按私网地址挑会踩坑——本机同时存在 VMware(192.168.x)、Hyper-V(172.x)、
+    EasyTier 覆盖网(10.126.126.x) 和代理 TUN(198.18.x)，这些地址手机都连不上。
+    带默认网关的网卡才是真正对外连通的那块，手机通常也在这个网络里。
+    """
+    script = (
+        "Get-NetIPConfiguration -ErrorAction SilentlyContinue | "
+        "Where-Object { $_.IPv4DefaultGateway -ne $null } | "
+        'ForEach-Object { "$($_.IPv4Address.IPAddress)|$($_.InterfaceAlias)" }'
+    )
+    try:
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", script],
+            capture_output=True, text=True, timeout=10,
+        ).stdout
+    except Exception:
+        return []
+
+    wireless = ("wi-fi", "wifi", "wlan", "无线", "wireless")
+    ranked = []
+
+    for line in out.splitlines():
+        line = line.strip()
+        if "|" not in line:
+            continue
+
+        ip, alias = line.split("|", 1)
+        ip = ip.strip()
+        if not _plausible_lan(ip):
+            continue
+
+        is_wireless = any(word in alias.lower() for word in wireless)
+        ranked.append((0 if is_wireless else 1, ip, alias))
+
+    ranked.sort()
+    return [ip for _, ip, _ in ranked]
+
+
+def lan_candidates() -> list:
+    """按可信度排序的局域网地址候选（第一个用于打印链接）"""
+    # Windows 上只要拿到"带默认网关"的网卡就够了；VMware / Hyper-V / EasyTier /
+    # 代理 TUN 的地址都在这之外，列出来只会误导。
+    gateway = _windows_candidates()
+    if gateway:
+        return gateway
+
+    seen = []
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         sock.connect(("8.8.8.8", 80))
-        candidates.append(sock.getsockname()[0])
+        ip = sock.getsockname()[0]
+        if _plausible_lan(ip) and ip not in seen:
+            seen.append(ip)
     except OSError:
         pass
     finally:
@@ -61,15 +110,14 @@ def lan_ip() -> str:
 
     try:
         for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
-            candidates.append(info[4][0])
+            ip = info[4][0]
+            if _plausible_lan(ip) and ip not in seen:
+                seen.append(ip)
     except OSError:
         pass
 
-    for ip in candidates:
-        if _plausible_lan(ip):
-            return ip
+    return seen
 
-    return candidates[0] if candidates else "127.0.0.1"
 
 
 def human_size(n: int) -> str:
@@ -158,7 +206,8 @@ def serve(args: argparse.Namespace) -> int:
     payload = open(path, "rb").read()
     token = secrets.token_hex(8)
     bind = args.bind or "0.0.0.0"
-    host = args.host or lan_ip()
+    candidates = [] if args.host else lan_candidates()
+    host = args.host or (candidates[0] if candidates else "127.0.0.1")
 
     port = args.port
     httpd = None
@@ -186,6 +235,12 @@ def serve(args: argparse.Namespace) -> int:
     print()
     print(f"  链接：{url}")
     print()
+
+    if len(candidates) > 1:
+        print("  本机其它地址（第一个连不上时换一个试试）：")
+        for ip in candidates[1:]:
+            print(f"    http://{ip}:{port}/{token}")
+        print()
     print("  手机端：配置 → 导入 → 从链接 / 二维码导入")
     print()
 
