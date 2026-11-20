@@ -12,8 +12,13 @@
 特性：
   * 只提供一份文件（随机路径），没有目录浏览；
   * 默认监听 0.0.0.0，端口占用时自动 +1 重试；
-  * 装了 qrcode / segno 就在终端打印二维码，否则只打印链接（手机手输即可）；
+  * 装了 qrcode 就把二维码画成图片并在屏幕上打开（终端再打一份备用）；
+    没装则只打印链接（手机手输即可）；
   * 传输完成后按 Ctrl+C 结束，服务进程退出即断开。
+
+为什么默认用图片而不是终端字符画：终端里的 ▀/▄ 半块字符依赖字体与行高，
+不同终端下模块可能被拉成长方形、上下被裁掉，或者因配色变成反色二维码，
+手机端（ZXing）经常扫不出来。图片是 1:1 正方形模块 + 4 模块静区，稳定得多。
 
 安全提示：这是局域网内的明文 HTTP，只在自己信任的网络里用；用完即关。
 """
@@ -23,10 +28,13 @@ import http.server
 import ipaddress
 import os
 import secrets
+import shutil
 import socket
 import subprocess
 import sys
+import tempfile
 import threading
+import webbrowser
 
 MIME = "application/octet-stream"
 
@@ -128,27 +136,121 @@ def human_size(n: int) -> str:
     return f"{n:.1f} GB"
 
 
-def print_qr(url: str) -> bool:
+def _build_qr(url: str):
+    """构造二维码对象。
+
+    border=4 是 ISO/IEC 18004 要求的静区宽度；用 border=1 时很多解码器
+    会因为边缘没有足够空白而放弃识别。
+    """
+    import qrcode  # type: ignore
+
+    qr = qrcode.QRCode(
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(url)
+    qr.make(fit=True)
+    return qr
+
+
+def _write_qr_png(qr) -> str:
+    """渲染成 PNG（需要 Pillow）。模块放大到整图约 900px，方便远距离扫描。"""
+    from PIL import Image  # noqa: F401  # make_image 依赖 Pillow
+
+    size = len(qr.get_matrix())
+    qr.box_size = max(8, 900 // size)
+
+    path = os.path.join(tempfile.gettempdir(), f"easyclash-qr-{secrets.token_hex(4)}.png")
+    qr.make_image(fill_color="black", back_color="white").save(path)
+    return path
+
+
+def _write_qr_svg(qr) -> str:
+    """没有 Pillow 时的退路：手写 SVG，用浏览器打开同样清晰。"""
+    matrix = qr.get_matrix()
+    size = len(matrix)
+    rects = []
+    for y, row in enumerate(matrix):
+        for x, dark in enumerate(row):
+            if dark:
+                rects.append(f'<rect x="{x}" y="{y}" width="1" height="1"/>')
+
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {size} {size}" '
+        f'width="900" height="900" shape-rendering="crispEdges">'
+        f'<rect width="{size}" height="{size}" fill="#fff"/>'
+        f'<g fill="#000">{"".join(rects)}</g></svg>'
+    )
+
+    path = os.path.join(tempfile.gettempdir(), f"easyclash-qr-{secrets.token_hex(4)}.svg")
+    with open(path, "w", encoding="utf-8") as handle:
+        handle.write(svg)
+    return path
+
+
+def _open_file(path: str) -> bool:
     try:
-        import qrcode  # type: ignore
-
-        qr = qrcode.QRCode(border=1)
-        qr.add_data(url)
-        qr.make(fit=True)
-        qr.print_ascii(invert=True)
+        if hasattr(os, "startfile"):  # Windows
+            os.startfile(path)  # type: ignore[attr-defined]
+        else:
+            webbrowser.open("file://" + path)
         return True
-    except Exception:
-        pass
+    except OSError:
+        return False
 
+
+def _print_qr_terminal(qr) -> bool:
+    """终端备用二维码：用 ANSI 背景色画方块，颜色不受终端主题影响。"""
+    matrix = qr.get_matrix()
+    columns = shutil.get_terminal_size((80, 24)).columns
+
+    # 每个模块占 2 个字符宽、1 行高，正好接近方形；放不下就不画，免得被裁掉
+    if len(matrix) * 2 + 2 > columns:
+        return False
+
+    dark = "\x1b[40m  \x1b[0m"
+    light = "\x1b[47m  \x1b[0m"
+
+    for row in matrix:
+        print("".join(dark if cell else light for cell in row))
+
+    return True
+
+
+def present_qr(url: str, open_window: bool = True) -> None:
     try:
-        import segno  # type: ignore
-
-        segno.make(url).terminal(compact=True)
-        return True
+        qr = _build_qr(url)
     except Exception:
-        pass
+        print("  （未安装 qrcode，无法生成二维码；直接输入上面的链接即可）")
+        print("   pip install qrcode pillow   # 可选，用于生成二维码")
+        print()
+        return
 
-    return False
+    image_path = None
+    opened = False
+
+    if open_window:
+        try:
+            image_path = _write_qr_png(qr)
+        except Exception:
+            try:
+                image_path = _write_qr_svg(qr)
+            except Exception:
+                image_path = None
+
+        if image_path and _open_file(image_path):
+            opened = True
+            print(f"  二维码图片已打开：{image_path}")
+            print("  手机对准屏幕上的图片扫码（终端里那条只是备用）")
+            print()
+
+    if not _print_qr_terminal(qr):
+        if opened:
+            print("  （终端太窄，显示不下二维码；请用上面打开的图片）")
+        else:
+            print("  （终端太窄，二维码没画出来；请把上面的链接直接输入手机）")
+        print()
 
 
 def make_handler(path: str, token: str, payload: bytes):
@@ -244,10 +346,7 @@ def serve(args: argparse.Namespace) -> int:
     print("  手机端：配置 → 导入 → 从链接 / 二维码导入")
     print()
 
-    if not print_qr(url):
-        print("  （未安装 qrcode / segno，无法打印二维码；直接输入上面的链接即可）")
-        print("   pip install qrcode   # 可选，用于生成二维码")
-        print()
+    present_qr(url, open_window=not args.no_qr_window)
 
     print("  结束请按 Ctrl+C")
     print()
@@ -274,6 +373,11 @@ def main(argv: list) -> int:
     parser.add_argument("--port", type=int, default=8765, help="起始端口（默认 8765）")
     parser.add_argument("--bind", default=None, help="绑定地址（默认 0.0.0.0）")
     parser.add_argument("--host", default=None, help="打印链接时使用的主机（默认自动探测）")
+    parser.add_argument(
+        "--no-qr-window",
+        action="store_true",
+        help="不自动打开二维码图片窗口（只打印链接和终端二维码）",
+    )
 
     return serve(parser.parse_args(argv))
 
