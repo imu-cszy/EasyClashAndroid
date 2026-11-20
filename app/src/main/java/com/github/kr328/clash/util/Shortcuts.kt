@@ -7,8 +7,6 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Rect
-import androidx.core.content.ContextCompat
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
@@ -77,8 +75,8 @@ object Shortcuts {
     }
 
     /**
-     * 蓝底 + 停止符 = 正在运行；灰底 + 播放符 = 已停止。
-     * 用位图而不是资源矢量，是因为矢量无法按状态着色，而且桌面图标的尺寸由启动器决定。
+     * 开关样式两态图：已开启 = 蓝色轨道、旋钮在右；已关闭 = 灰色轨道、旋钮在左。
+     * 用运行时绘制的位图：矢量无法按状态着色，桌面图标的实际尺寸也由启动器决定。
      */
     private fun toggleIcon(context: Context, running: Boolean): IconCompat {
         val density = context.resources.displayMetrics.density
@@ -87,22 +85,28 @@ object Shortcuts {
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
 
-        val background = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = if (running) 0xFF0A84FF.toInt() else 0xFFB9BDC6.toInt()
-        }
-        canvas.drawCircle(size / 2f, size / 2f, size / 2f, background)
+        val trackW = size * 0.62f
+        val trackH = size * 0.36f
+        val left = (size - trackW) / 2f
+        val top = (size - trackH) / 2f
+        val radius = trackH / 2f
 
-        val glyph = ContextCompat.getDrawable(
-            context,
-            if (running) DesignR.drawable.ic_stop_filled else DesignR.drawable.ic_play_filled,
-        )?.mutate()
-
-        if (glyph != null) {
-            glyph.setTint(Color.WHITE)
-            val inset = (size * 0.27f).toInt()
-            glyph.bounds = Rect(inset, inset, size - inset, size - inset)
-            glyph.draw(canvas)
+        val track = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = if (running) 0xFF0A84FF.toInt() else 0xFFB0B3BA.toInt()
         }
+        canvas.drawRoundRect(left, top, left + trackW, top + trackH, radius, radius, track)
+
+        // 旋钮：直径略小于轨道高，左右各留轨道高的 8% 边距；开启时滑到右侧
+        val knobDiameter = trackH * 0.84f
+        val margin = trackH * 0.08f
+        val knobCenterX = if (running) {
+            left + trackW - margin - knobDiameter / 2f
+        } else {
+            left + margin + knobDiameter / 2f
+        }
+
+        val knob = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.WHITE }
+        canvas.drawCircle(knobCenterX, top + trackH / 2f, knobDiameter / 2f, knob)
 
         return IconCompat.createWithBitmap(bitmap)
     }

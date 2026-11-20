@@ -1,9 +1,9 @@
 name: Build Pre-Release
+# EasyClash: 该流水线需要 release.keystore 签名密钥（仓库 Secrets），
+# fork 上没有配置，push 触发必然失败并发告警邮件，因此只保留手动触发。
+# 想启用：配置 Secrets 后把 push 触发加回来，或在这里手动 Run workflow。
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
 
 jobs:
   BuildPreRelease:
